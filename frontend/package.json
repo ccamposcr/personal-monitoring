@@ -1,0 +1,22 @@
+{
+  "name": "xr18-monitor-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for XR18 personal monitor mixing app",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.4",
+    "socket.io-client": "^4.7.2",
+    "vue-router": "^4.2.4",
+    "@vueuse/core": "^10.4.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "vite": "^4.4.9",
+    "sass": "^1.64.2"
+  }
+}

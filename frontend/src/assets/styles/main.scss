@@ -1,0 +1,357 @@
+// Reset and base styles
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #ffffff;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+// Header styles
+.app-header {
+  background: rgba(0, 0, 0, 0.8);
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+  h1 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #00ff88;
+
+    @media (max-width: 480px) {
+      font-size: 1rem;
+    }
+  }
+
+  .connection-status {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    color: #ff6666;
+    transition: all 0.3s ease;
+
+    &.connected {
+      background: rgba(0, 255, 136, 0.2);
+      border: 1px solid rgba(0, 255, 136, 0.5);
+      color: #00ff88;
+    }
+  }
+}
+
+// Mixer view styles
+.mixer-view {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.auxiliary-selector {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    color: #00ff88;
+  }
+
+  select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+    font-size: 1rem;
+    appearance: none;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    option {
+      background: #1a1a1a;
+      color: #ffffff;
+    }
+  }
+
+  .user-indicator {
+    margin-top: 0.8rem;
+    text-align: center;
+
+    .user-count {
+      display: inline-block;
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      padding: 0.3rem 0.8rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+  color: #00ff88;
+}
+
+.error {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff6666;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+// Mixer channels
+.mixer-channels {
+  h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #00ff88;
+    font-size: 1.3rem;
+  }
+}
+
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 0.8rem;
+  max-width: 100%;
+  
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 0.6rem;
+  }
+}
+
+// Channel strip styles
+.channel-strip {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 0.8rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+  touch-action: none;
+  
+  @media (max-width: 480px) {
+    height: 280px;
+    padding: 0.6rem 0.4rem;
+  }
+
+  .channel-header {
+    text-align: center;
+    margin-bottom: 0.8rem;
+
+    .channel-number {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #00ff88;
+      margin-bottom: 0.2rem;
+    }
+
+    .channel-name {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.7);
+      display: block;
+      
+      @media (max-width: 480px) {
+        font-size: 0.6rem;
+      }
+    }
+  }
+
+  .fader-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    margin-bottom: 0.8rem;
+
+    .level-display {
+      font-size: 0.7rem;
+      color: #00ff88;
+      margin-bottom: 0.5rem;
+      min-height: 1rem;
+      font-weight: bold;
+    }
+
+    .fader-track {
+      width: 8px;
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+      margin: 0.5rem 0;
+      min-height: 150px;
+
+      .fader-fill {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, #00ff88, #66ffaa);
+        border-radius: 4px;
+        transition: height 0.1s ease;
+      }
+
+      .fader-thumb {
+        position: absolute;
+        left: -6px;
+        width: 20px;
+        height: 12px;
+        background: #ffffff;
+        border-radius: 6px;
+        cursor: grab;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        transition: bottom 0.1s ease;
+        border: 2px solid #00ff88;
+
+        &:active {
+          cursor: grabbing;
+        }
+      }
+    }
+
+    .fader-slider {
+      position: absolute;
+      left: -10px;
+      width: 28px;
+      height: calc(100% - 2rem);
+      opacity: 0;
+      cursor: pointer;
+      writing-mode: bt-lr;
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      background: transparent;
+    }
+  }
+
+  .mute-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    padding: 0.4rem 0.2rem;
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+
+    @media (max-width: 480px) {
+      padding: 0.3rem 0.1rem;
+      font-size: 0.55rem;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    &.muted {
+      background: rgba(255, 0, 0, 0.3);
+      border-color: rgba(255, 0, 0, 0.5);
+      color: #ff6666;
+    }
+
+    &:not(.muted):hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .mixer-view {
+    padding: 0.8rem;
+  }
+  
+  .auxiliary-selector {
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.8rem;
+  }
+  
+  .mixer-view {
+    padding: 0.6rem;
+  }
+  
+  .auxiliary-selector {
+    padding: 0.6rem;
+    margin-bottom: 1rem;
+  }
+}
+
+// Touch improvements
+@media (hover: none) and (pointer: coarse) {
+  .channel-strip .fader-container .fader-track {
+    width: 12px;
+    
+    .fader-thumb {
+      width: 24px;
+      height: 16px;
+      left: -6px;
+    }
+  }
+  
+  .channel-strip .fader-container .fader-slider {
+    width: 32px;
+    left: -10px;
+  }
+  
+  .channel-strip .mute-button {
+    padding: 0.6rem 0.4rem;
+    font-size: 0.65rem;
+  }
+}
