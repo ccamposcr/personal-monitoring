@@ -123,12 +123,14 @@ export default {
     }
 
     const handleTouch = (event) => {
+      if (!event.currentTarget || typeof event.currentTarget.getBoundingClientRect !== 'function') return
       const touch = event.touches[0]
       const rect = event.currentTarget.getBoundingClientRect()
       updateFaderFromPosition(touch.clientY, rect)
     }
 
     const handleMouse = (event) => {
+      if (!event.currentTarget || typeof event.currentTarget.getBoundingClientRect !== 'function') return
       const rect = event.currentTarget.getBoundingClientRect()
       updateFaderFromPosition(event.clientY, rect)
     }

@@ -23,11 +23,11 @@ export default {
     onMounted(() => {
       connect()
       
-      socket.on('connect', () => {
+      socket.value.on('connect', () => {
         socketConnected.value = true
       })
       
-      socket.on('disconnect', () => {
+      socket.value.on('disconnect', () => {
         socketConnected.value = false
       })
     })

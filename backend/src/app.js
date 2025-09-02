@@ -10,7 +10,13 @@ const app = express();
 const server = createServer(app);
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:4173",
+    "http://localhost:8080",
+    "http://192.168.2.175:5173"
+  ],
   methods: ["GET", "POST"]
 }));
 
@@ -18,7 +24,13 @@ app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:4173",
+      "http://localhost:8080",
+      "http://192.168.2.175:5173"
+    ],
     methods: ["GET", "POST"]
   }
 });

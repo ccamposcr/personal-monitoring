@@ -68,7 +68,7 @@ export default {
 
     const loadAuxiliaries = async () => {
       try {
-        const response = await fetch('http://localhost:3000/auxiliaries')
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/auxiliaries`)
         const data = await response.json()
         auxiliaries.value = data.auxiliaries
       } catch (err) {
@@ -80,13 +80,13 @@ export default {
       if (selectedAux.value && socket) {
         loading.value = true
         error.value = ''
-        socket.emit('join-auxiliary', parseInt(selectedAux.value))
+        socket.value.emit('join-auxiliary', parseInt(selectedAux.value))
       }
     }
 
     const handleLevelChange = (channelNumber, level) => {
       if (socket && currentAuxData.value) {
-        socket.emit('update-channel-level', {
+        socket.value.emit('update-channel-level', {
           auxNumber: currentAuxData.value.auxNumber,
           channelNumber,
           level
@@ -98,29 +98,29 @@ export default {
       connect()
       loadAuxiliaries()
 
-      if (socket) {
-        socket.on('connect', () => {
+      if (socket.value) {
+        socket.value.on('connect', () => {
           socketConnected.value = true
           loadAuxiliaries()
         })
 
-        socket.on('disconnect', () => {
+        socket.value.on('disconnect', () => {
           socketConnected.value = false
           currentAuxData.value = null
           connectedUsers.value = 0
         })
 
-        socket.on('auxiliary-data', (data) => {
+        socket.value.on('auxiliary-data', (data) => {
           currentAuxData.value = data
           loading.value = false
         })
 
-        socket.on('user-count-updated', (count) => {
+        socket.value.on('user-count-updated', (count) => {
           connectedUsers.value = count
           loadAuxiliaries()
         })
 
-        socket.on('channel-updated', (data) => {
+        socket.value.on('channel-updated', (data) => {
           if (currentAuxData.value) {
             const channel = currentAuxData.value.channels.find(
               ch => ch.number === data.channelNumber
@@ -131,7 +131,7 @@ export default {
           }
         })
 
-        socket.on('error', (message) => {
+        socket.value.on('error', (message) => {
           error.value = message
           loading.value = false
         })
@@ -140,12 +140,12 @@ export default {
 
     onUnmounted(() => {
       if (socket) {
-        socket.off('connect')
-        socket.off('disconnect')
-        socket.off('auxiliary-data')
-        socket.off('user-count-updated')
-        socket.off('channel-updated')
-        socket.off('error')
+        socket.value.off('connect')
+        socket.value.off('disconnect')
+        socket.value.off('auxiliary-data')
+        socket.value.off('user-count-updated')
+        socket.value.off('channel-updated')
+        socket.value.off('error')
       }
     })
 

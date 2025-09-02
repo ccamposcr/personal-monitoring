@@ -9,7 +9,7 @@ class XR18Controller {
     this.connected = false;
     this.channelData = new Map();
     
-    this.channels = 18;
+    this.channels = 16;
     this.auxiliaries = 6;
     
     this.setupOSCServer();

@@ -34,7 +34,7 @@ export function useSocket() {
   })
 
   return {
-    socket: socket.value,
+    socket,
     connected,
     connect,
     disconnect
