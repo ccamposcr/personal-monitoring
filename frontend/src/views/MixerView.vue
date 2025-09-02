@@ -40,6 +40,7 @@
           :channel="channel"
           :aux-number="currentAuxData.auxNumber"
           @level-change="handleLevelChange"
+          @mute-change="handleMuteChange"
         />
       </div>
     </div>
@@ -50,6 +51,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useSocket } from '@/composables/useSocket'
 import ChannelStrip from '@/components/ChannelStrip.vue'
+import { getBackendUrl } from '@/utils/networkUtils.js'
 
 export default {
   name: 'MixerView',
@@ -68,11 +70,24 @@ export default {
 
     const loadAuxiliaries = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/auxiliaries`)
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || getBackendUrl()
+        console.log(`Cargando auxiliares desde: ${backendUrl}/auxiliaries`)
+        
+        const response = await fetch(`${backendUrl}/auxiliaries`)
+        console.log('Response status:', response.status)
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
         const data = await response.json()
+        console.log('Datos recibidos:', data)
         auxiliaries.value = data.auxiliaries
+        console.log('Auxiliares cargados:', auxiliaries.value)
       } catch (err) {
         console.error('Error cargando auxiliares:', err)
+        error.value = `Error cargando auxiliares: ${err.message}`
       }
     }
 
@@ -90,6 +105,17 @@ export default {
           auxNumber: currentAuxData.value.auxNumber,
           channelNumber,
           level
+        })
+      }
+    }
+
+    const handleMuteChange = (channelNumber, muted) => {
+      if (socket && currentAuxData.value) {
+        console.log(`MixerView - enviando toggle-channel-mute: Ch${channelNumber}, Aux${currentAuxData.value.auxNumber}, muted=${muted}`)
+        socket.value.emit('toggle-channel-mute', {
+          auxNumber: currentAuxData.value.auxNumber,
+          channelNumber,
+          muted
         })
       }
     }
@@ -131,6 +157,19 @@ export default {
           }
         })
 
+        socket.value.on('channel-mute-updated', (data) => {
+          console.log(`MixerView - recibido channel-mute-updated: Ch${data.channelNumber}, muted=${data.muted}`)
+          if (currentAuxData.value) {
+            const channel = currentAuxData.value.channels.find(
+              ch => ch.number === data.channelNumber
+            )
+            if (channel) {
+              console.log(`Actualizando canal ${channel.number}: muted ${channel.muted} -> ${data.muted}`)
+              channel.muted = data.muted
+            }
+          }
+        })
+
         socket.value.on('error', (message) => {
           error.value = message
           loading.value = false
@@ -145,6 +184,7 @@ export default {
         socket.value.off('auxiliary-data')
         socket.value.off('user-count-updated')
         socket.value.off('channel-updated')
+        socket.value.off('channel-mute-updated')
         socket.value.off('error')
       }
     })
@@ -158,7 +198,8 @@ export default {
       error,
       connectedUsers,
       joinAuxiliary,
-      handleLevelChange
+      handleLevelChange,
+      handleMuteChange
     }
   }
 }

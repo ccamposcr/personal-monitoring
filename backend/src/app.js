@@ -5,18 +5,13 @@ const cors = require('cors');
 require('dotenv').config();
 
 const XR18Controller = require('./controllers/XR18Controller');
+const { generateCorsOrigins } = require('./utils/networkUtils');
 
 const app = express();
 const server = createServer(app);
 
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:4173",
-    "http://localhost:8080",
-    "http://192.168.2.175:5173"
-  ],
+  origin: generateCorsOrigins(),
   methods: ["GET", "POST"]
 }));
 
@@ -24,13 +19,7 @@ app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.FRONTEND_URL || "http://localhost:5173",
-      "http://localhost:3000",
-      "http://localhost:4173",
-      "http://localhost:8080",
-      "http://192.168.2.175:5173"
-    ],
+    origin: generateCorsOrigins(),
     methods: ["GET", "POST"]
   }
 });
@@ -97,6 +86,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('toggle-channel-mute', async (data) => {
+    const { auxNumber, channelNumber, muted } = data;
+    console.log(`Socket recibido - toggle-channel-mute: Ch${channelNumber}, Aux${auxNumber}, muted=${muted}`);
+    
+    try {
+      const result = await xr18.muteChannel(auxNumber, channelNumber, muted);
+      console.log(`Enviando channel-mute-updated:`, result);
+      io.to(`aux-${auxNumber}`).emit('channel-mute-updated', {
+        channelNumber,
+        muted
+      });
+    } catch (error) {
+      console.error('Error actualizando mute:', error);
+      socket.emit('error', 'Error actualizando el mute del canal');
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);
     
@@ -123,17 +129,18 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/auxiliaries', (req, res) => {
-  res.json({
-    auxiliaries: Array.from({ length: 6 }, (_, i) => ({
-      id: i + 1,
-      name: `Auxiliar ${i + 1}`,
-      userCount: auxiliaryUsers.get(i + 1)?.size || 0
-    }))
-  });
+  console.log(`GET /auxiliaries - IP: ${req.ip}, User-Agent: ${req.get('User-Agent')}`);
+  const auxiliaries = Array.from({ length: 6 }, (_, i) => ({
+    id: i + 1,
+    name: `Auxiliar ${i + 1}`,
+    userCount: auxiliaryUsers.get(i + 1)?.size || 0
+  }));
+  console.log('Enviando auxiliares:', auxiliaries);
+  res.json({ auxiliaries });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);
   xr18.connect();
 });

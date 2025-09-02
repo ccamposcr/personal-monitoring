@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import io from 'socket.io-client'
+import { getBackendUrl } from '../utils/networkUtils.js'
 
 const socket = ref(null)
 const connected = ref(false)
@@ -7,7 +8,7 @@ const connected = ref(false)
 export function useSocket() {
   const connect = () => {
     if (!socket.value) {
-      socket.value = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000')
+      socket.value = io(import.meta.env.VITE_BACKEND_URL || getBackendUrl())
       
       socket.value.on('connect', () => {
         connected.value = true

@@ -1,7 +1,6 @@
 <template>
   <div class="channel-strip">
     <div class="channel-header">
-      <span class="channel-number">{{ channel.number }}</span>
       <span class="channel-name">{{ channel.name }}</span>
     </div>
     
@@ -28,15 +27,16 @@
         @change="handleFaderChange"
         class="fader-slider"
         orient="vertical"
+        style="display: none;"
       />
     </div>
     
     <button 
       class="mute-button"
-      :class="{ muted: localLevel === 0 }"
+      :class="{ muted: channel.muted }"
       @click="toggleMute"
     >
-      {{ localLevel === 0 ? 'UNMUTE' : 'MUTE' }}
+      {{ channel.muted ? 'UNMUTE' : 'MUTE' }}
     </button>
   </div>
 </template>
@@ -61,6 +61,7 @@ export default {
     const localLevel = ref(props.channel.level || 0)
     const previousLevel = ref(0.75)
     const isDragging = ref(false)
+    let updateTimeout = null
 
     watch(() => props.channel.level, (newLevel) => {
       if (!isDragging.value) {
@@ -69,27 +70,36 @@ export default {
     })
 
     const handleFaderChange = () => {
-      emit('level-change', props.channel.number, localLevel.value)
+      // Throttling: solo enviar actualizaciones cada 100ms como máximo
+      if (updateTimeout) {
+        clearTimeout(updateTimeout)
+      }
+      
+      updateTimeout = setTimeout(() => {
+        emit('level-change', props.channel.number, localLevel.value)
+        updateTimeout = null
+      }, 100)
     }
 
     const toggleMute = () => {
-      if (localLevel.value === 0) {
-        localLevel.value = previousLevel.value
-      } else {
-        previousLevel.value = localLevel.value
-        localLevel.value = 0
-      }
-      handleFaderChange()
+      const newMutedState = !props.channel.muted
+      console.log(`ChannelStrip - toggleMute: Ch${props.channel.number}, current=${props.channel.muted}, new=${newMutedState}`)
+      emit('mute-change', props.channel.number, newMutedState)
     }
 
     const handleTouchStart = (event) => {
       event.preventDefault()
       isDragging.value = true
-      handleTouch(event)
+      const faderTrack = event.currentTarget
+      const touch = event.touches[0]
+      const rect = faderTrack.getBoundingClientRect()
+      updateFaderFromPosition(touch.clientY, rect)
       
       const handleTouchMove = (e) => {
         e.preventDefault()
-        handleTouch(e)
+        const touch = e.touches[0]
+        const rect = faderTrack.getBoundingClientRect()
+        updateFaderFromPosition(touch.clientY, rect)
       }
       
       const handleTouchEnd = () => {
@@ -105,11 +115,14 @@ export default {
     const handleMouseDown = (event) => {
       event.preventDefault()
       isDragging.value = true
-      handleMouse(event)
+      const faderTrack = event.currentTarget
+      const rect = faderTrack.getBoundingClientRect()
+      updateFaderFromPosition(event.clientY, rect)
       
       const handleMouseMove = (e) => {
         e.preventDefault()
-        handleMouse(e)
+        const rect = faderTrack.getBoundingClientRect()
+        updateFaderFromPosition(e.clientY, rect)
       }
       
       const handleMouseUp = () => {
@@ -122,26 +135,19 @@ export default {
       document.addEventListener('mouseup', handleMouseUp)
     }
 
-    const handleTouch = (event) => {
-      if (!event.currentTarget || typeof event.currentTarget.getBoundingClientRect !== 'function') return
-      const touch = event.touches[0]
-      const rect = event.currentTarget.getBoundingClientRect()
-      updateFaderFromPosition(touch.clientY, rect)
-    }
-
-    const handleMouse = (event) => {
-      if (!event.currentTarget || typeof event.currentTarget.getBoundingClientRect !== 'function') return
-      const rect = event.currentTarget.getBoundingClientRect()
-      updateFaderFromPosition(event.clientY, rect)
-    }
-
     const updateFaderFromPosition = (clientY, rect) => {
       const relativeY = clientY - rect.top
-      const percentage = 1 - (relativeY / rect.height)
-      const clampedValue = Math.max(0, Math.min(1, percentage))
       
-      localLevel.value = clampedValue
-      handleFaderChange()
+      // Solo actualizar si está dentro de un rango ampliado del fader
+      // Esto evita saltos bruscos cuando se sale del área
+      if (relativeY >= -50 && relativeY <= rect.height + 50) {
+        // Constrañir la posición Y al rango válido del fader
+        const constrainedY = Math.max(0, Math.min(rect.height, relativeY))
+        const percentage = 1 - (constrainedY / rect.height)
+        localLevel.value = Math.max(0, Math.min(1, percentage))
+        handleFaderChange()
+      }
+      // Si se sale demasiado del área, mantener el valor actual sin actualizar
     }
 
     return {
