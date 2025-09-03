@@ -6,9 +6,13 @@ const socket = ref(null)
 const connected = ref(false)
 
 export function useSocket() {
-  const connect = () => {
-    if (!socket.value) {
-      socket.value = io(import.meta.env.VITE_BACKEND_URL || getBackendUrl())
+  const connect = (user = null) => {
+    if (!socket.value && user) {
+      socket.value = io(import.meta.env.VITE_BACKEND_URL || getBackendUrl(), {
+        auth: {
+          session: { user }
+        }
+      })
       
       socket.value.on('connect', () => {
         connected.value = true
@@ -18,6 +22,10 @@ export function useSocket() {
       socket.value.on('disconnect', () => {
         connected.value = false
         console.log('Desconectado del servidor')
+      })
+
+      socket.value.on('connect_error', (error) => {
+        console.error('Error de conexión Socket.IO:', error.message)
       })
     }
   }

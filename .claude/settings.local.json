@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(sudo chown:*)",
+      "Bash(chmod:*)",
+      "Bash(sudo:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

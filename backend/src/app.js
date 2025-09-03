@@ -2,29 +2,49 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const session = require('express-session');
 require('dotenv').config();
 
 const XR18Controller = require('./controllers/XR18Controller');
 const { generateCorsOrigins } = require('./utils/networkUtils');
+const Database = require('./models/database');
+const createAuthRoutes = require('./routes/auth');
+const createAdminRoutes = require('./routes/admin');
+const { requireAuth, checkAuxiliaryAccess } = require('./middleware/auth');
 
 const app = express();
 const server = createServer(app);
 
 app.use(cors({
   origin: generateCorsOrigins(),
-  methods: ["GET", "POST"]
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 app.use(express.json());
 
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'xr18-monitor-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
 const io = new Server(server, {
   cors: {
     origin: generateCorsOrigins(),
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
 const xr18 = new XR18Controller();
+const database = new Database();
 
 const connectedUsers = new Map();
 const auxiliaryUsers = new Map();
@@ -41,11 +61,23 @@ xr18.setLevelChangeCallback((data) => {
   });
 });
 
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  const sessionData = socket.handshake.auth.session;
+  if (!sessionData || !sessionData.user) {
+    return next(new Error('Authentication error'));
+  }
+  
+  socket.user = sessionData.user;
+  next();
+});
+
 io.on('connection', (socket) => {
-  console.log('Usuario conectado:', socket.id);
+  console.log('Usuario conectado:', socket.id, `- ${socket.user.username} (${socket.user.role})`);
   
   connectedUsers.set(socket.id, {
     id: socket.id,
+    user: socket.user,
     currentAux: null,
     joinedAt: new Date()
   });
@@ -53,6 +85,21 @@ io.on('connection', (socket) => {
   socket.on('join-auxiliary', async (auxNumber) => {
     const user = connectedUsers.get(socket.id);
     if (!user) return;
+
+    // Check if user has access to this auxiliary
+    if (socket.user.role !== 'admin') {
+      try {
+        const allowedAuxiliaries = await database.getUserAuxiliaries(socket.user.id);
+        if (!allowedAuxiliaries.includes(auxNumber)) {
+          socket.emit('error', 'No tienes acceso a este auxiliar');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking auxiliary access:', error);
+        socket.emit('error', 'Error de autenticación');
+        return;
+      }
+    }
 
     if (user.currentAux) {
       socket.leave(`aux-${user.currentAux}`);
@@ -129,23 +176,57 @@ io.on('connection', (socket) => {
   });
 });
 
+// Routes
+app.use('/auth', createAuthRoutes(database));
+app.use('/admin', createAdminRoutes(database));
+
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', mixer: xr18.isConnected() });
 });
 
-app.get('/auxiliaries', (req, res) => {
-  console.log(`GET /auxiliaries - IP: ${req.ip}, User-Agent: ${req.get('User-Agent')}`);
-  const auxiliaries = Array.from({ length: 6 }, (_, i) => ({
-    id: i + 1,
-    name: xr18.getAuxiliaryName(i + 1),
-    userCount: auxiliaryUsers.get(i + 1)?.size || 0
-  }));
-  console.log('Enviando auxiliares:', auxiliaries);
-  res.json({ auxiliaries });
+app.get('/auxiliaries', requireAuth, async (req, res) => {
+  try {
+    console.log(`GET /auxiliaries - User: ${req.session.user.username} (${req.session.user.role})`);
+    
+    let allowedAuxiliaries;
+    
+    if (req.session.user.role === 'admin') {
+      allowedAuxiliaries = [1, 2, 3, 4, 5, 6];
+    } else {
+      allowedAuxiliaries = await database.getUserAuxiliaries(req.session.user.id);
+    }
+
+    const allAuxiliaries = Array.from({ length: 6 }, (_, i) => ({
+      id: i + 1,
+      name: xr18.getAuxiliaryName(i + 1),
+      userCount: auxiliaryUsers.get(i + 1)?.size || 0,
+      allowed: allowedAuxiliaries.includes(i + 1)
+    }));
+
+    // Filter to only show allowed auxiliaries for regular users
+    const auxiliaries = req.session.user.role === 'admin' ? 
+      allAuxiliaries : 
+      allAuxiliaries.filter(aux => aux.allowed);
+
+    console.log('Enviando auxiliares:', auxiliaries.map(a => `${a.name} (${a.allowed ? 'allowed' : 'denied'})`));
+    res.json({ auxiliaries });
+  } catch (error) {
+    console.error('Error getting auxiliaries:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);
-  xr18.connect();
+
+// Initialize database and start server
+database.init().then(() => {
+  console.log('✅ Database initialized successfully');
+  
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);
+    xr18.connect();
+  });
+}).catch((error) => {
+  console.error('❌ Failed to initialize database:', error);
+  process.exit(1);
 });

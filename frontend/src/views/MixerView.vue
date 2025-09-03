@@ -49,6 +49,7 @@
 <script>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useSocket } from '@/composables/useSocket'
+import { useAuth } from '@/composables/useAuth'
 import ChannelStrip from '@/components/ChannelStrip.vue'
 import { getBackendUrl } from '@/utils/networkUtils.js'
 
@@ -59,6 +60,7 @@ export default {
   },
   setup() {
     const { socket, connect } = useSocket()
+    const { user, api } = useAuth()
     const socketConnected = ref(false)
     const selectedAux = ref('')
     const currentAuxData = ref(null)
@@ -69,24 +71,21 @@ export default {
 
     const loadAuxiliaries = async () => {
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || getBackendUrl()
-        console.log(`Cargando auxiliares desde: ${backendUrl}/auxiliaries`)
+        console.log(`Cargando auxiliares para usuario: ${user.value?.username}`)
         
-        const response = await fetch(`${backendUrl}/auxiliaries`)
-        console.log('Response status:', response.status)
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+        const response = await api.get('/auxiliaries')
+        console.log('Datos recibidos:', response.data)
         
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
-        
-        const data = await response.json()
-        console.log('Datos recibidos:', data)
-        auxiliaries.value = data.auxiliaries
-        console.log('Auxiliares cargados:', auxiliaries.value)
+        // Filter only allowed auxiliaries (already filtered by backend for regular users)
+        auxiliaries.value = response.data.auxiliaries.filter(aux => aux.allowed !== false)
+        console.log('Auxiliares permitidos:', auxiliaries.value)
       } catch (err) {
         console.error('Error cargando auxiliares:', err)
-        error.value = `Error cargando auxiliares: ${err.message}`
+        if (err.response?.status === 401) {
+          error.value = 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        } else {
+          error.value = `Error cargando auxiliares: ${err.response?.data?.error || err.message}`
+        }
       }
     }
 
@@ -110,7 +109,9 @@ export default {
 
 
     onMounted(() => {
-      connect()
+      if (user.value) {
+        connect(user.value)
+      }
       loadAuxiliaries()
 
       if (socket.value) {
@@ -179,3 +180,5 @@ export default {
   }
 }
 </script>
+
+
