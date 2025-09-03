@@ -70,7 +70,7 @@ export default {
     const handleLogin = async () => {
       error.value = ''
       
-      const result = await login(credentials.value.username, credentials.value.password)
+      const result = await login(credentials.value.username.trim(), credentials.value.password.trim())
       
       if (result.success) {
         router.push('/')

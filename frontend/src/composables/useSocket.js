@@ -38,9 +38,8 @@ export function useSocket() {
     }
   }
 
-  onUnmounted(() => {
-    disconnect()
-  })
+  // Don't auto-disconnect on unmount since this is a global socket
+  // Components should manually call disconnect when appropriate
 
   return {
     socket,

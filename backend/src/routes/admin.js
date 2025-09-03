@@ -85,7 +85,7 @@ function createAdminRoutes(database) {
       
       const updateData = {};
       if (username) updateData.username = username;
-      if (password) updateData.password = password;
+      if (password && password.trim() !== '') updateData.password = password;
       if (role && ['admin', 'regular'].includes(role)) updateData.role = role;
 
       if (auxiliaries) {

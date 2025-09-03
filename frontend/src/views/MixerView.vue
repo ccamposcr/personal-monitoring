@@ -6,7 +6,7 @@
         id="aux-select" 
         v-model="selectedAux" 
         @change="joinAuxiliary"
-        :disabled="!socketConnected"
+        :disabled="!connected"
       >
         <option value="">-- Selecciona un auxiliar --</option>
         <option 
@@ -59,9 +59,8 @@ export default {
     ChannelStrip
   },
   setup() {
-    const { socket, connect } = useSocket()
+    const { socket, connect, connected } = useSocket()
     const { user, api } = useAuth()
-    const socketConnected = ref(false)
     const selectedAux = ref('')
     const currentAuxData = ref(null)
     const auxiliaries = ref([])
@@ -116,12 +115,10 @@ export default {
 
       if (socket.value) {
         socket.value.on('connect', () => {
-          socketConnected.value = true
           loadAuxiliaries()
         })
 
         socket.value.on('disconnect', () => {
-          socketConnected.value = false
           currentAuxData.value = null
           connectedUsers.value = 0
         })
@@ -156,18 +153,23 @@ export default {
     })
 
     onUnmounted(() => {
-      if (socket) {
-        socket.value.off('connect')
-        socket.value.off('disconnect')
-        socket.value.off('auxiliary-data')
-        socket.value.off('user-count-updated')
-        socket.value.off('channel-updated')
-        socket.value.off('error')
+      // Remove specific event listeners when component unmounts
+      // but don't disconnect the socket as it's shared
+      if (socket && socket.value) {
+        try {
+          socket.value.off('auxiliary-data')
+          socket.value.off('user-count-updated')
+          socket.value.off('channel-updated')
+          socket.value.off('error')
+          // Keep 'connect' and 'disconnect' listeners as they're global
+        } catch (error) {
+          console.warn('Error removing socket listeners:', error)
+        }
       }
     })
 
     return {
-      socketConnected,
+      connected,
       selectedAux,
       currentAuxData,
       auxiliaries,

@@ -34,9 +34,13 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const { checkAuth, isAuthenticated, isAdmin } = useAuth()
 
-  // Check authentication status
-  if (!isAuthenticated.value) {
-    await checkAuth()
+  // Check authentication status only if we need to
+  if (!isAuthenticated.value && (to.meta.requiresAuth || to.meta.requiresAdmin)) {
+    try {
+      await checkAuth()
+    } catch (error) {
+      // Silently handle auth check failures - they're expected when not logged in
+    }
   }
 
   // Handle routes that require authentication

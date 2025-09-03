@@ -197,11 +197,13 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useSocket } from '@/composables/useSocket'
 
 export default {
   name: 'AdminView',
   setup() {
     const router = useRouter()
+    const { disconnect: disconnectSocket } = useSocket()
     const { 
       user: currentUser, 
       logout: authLogout, 
@@ -210,6 +212,7 @@ export default {
       updateUser, 
       deleteUser: deleteUserApi, 
       changeUserPassword,
+      checkAuth,
       api
     } = useAuth()
 
@@ -261,6 +264,14 @@ export default {
       try {
         users.value = await getUsers()
       } catch (error) {
+        console.error('Error loading users:', error)
+        
+        // If unauthorized, redirect to login
+        if (error.response?.status === 401) {
+          router.push('/login')
+          return
+        }
+        
         showMessage('Error cargando usuarios: ' + (error.response?.data?.error || error.message), 'error')
       } finally {
         loadingUsers.value = false
@@ -285,7 +296,7 @@ export default {
           auxiliaries: userForm.role === 'admin' ? [] : userForm.auxiliaries
         }
 
-        if (userForm.password) {
+        if (userForm.password && userForm.password.trim() !== '') {
           userData.password = userForm.password
         }
 
@@ -368,6 +379,7 @@ export default {
     }
 
     const logout = async () => {
+      disconnectSocket() // Disconnect socket before logout
       await authLogout()
       router.push('/login')
     }
@@ -382,8 +394,29 @@ export default {
     }
 
     onMounted(async () => {
-      await loadUsers()
-      await loadAuxiliaries()
+      // Check authentication first
+      try {
+        // Verify user session is still valid
+        const authValid = await checkAuth()
+        
+        if (!authValid || !currentUser.value) {
+          router.push('/login')
+          return
+        }
+        
+        if (currentUser.value.role !== 'admin') {
+          router.push('/')
+          return
+        }
+
+        // Load data
+        await loadUsers()
+        await loadAuxiliaries()
+      } catch (error) {
+        console.error('Error in admin view initialization:', error)
+        // If authentication fails, redirect to login
+        router.push('/login')
+      }
     })
 
     return {

@@ -5,7 +5,7 @@
     </div>
     
     <div class="fader-container">
-      <div class="level-display">{{ Math.round(localLevel * 100) }}%</div>
+      <div class="level-display">{{ formatLevelDisplay(localLevel) }}</div>
       
       <div class="fader-track" @touchstart="handleTouchStart" @mousedown="handleMouseDown">
         <div class="fader-fill" :style="{ height: `${localLevel * 100}%` }"></div>
@@ -20,7 +20,7 @@
       <input 
         type="range" 
         min="0" 
-        max="1" 
+        max="0.99" 
         step="0.01"
         v-model.number="localLevel"
         @input="handleFaderChange"
@@ -51,13 +51,14 @@ export default {
   },
   emits: ['level-change'],
   setup(props, { emit }) {
-    const localLevel = ref(props.channel.level || 0)
+    const localLevel = ref(Math.min(0.99, props.channel.level || 0))
     const isDragging = ref(false)
     let updateTimeout = null
 
     watch(() => props.channel.level, (newLevel) => {
       if (!isDragging.value) {
-        localLevel.value = newLevel || 0
+        // Limitar el nivel máximo al 99%
+        localLevel.value = Math.min(0.99, newLevel || 0)
       }
     })
 
@@ -131,17 +132,33 @@ export default {
         // Constrañir la posición Y al rango válido del fader
         const constrainedY = Math.max(0, Math.min(rect.height, relativeY))
         const percentage = 1 - (constrainedY / rect.height)
-        localLevel.value = Math.max(0, Math.min(1, percentage))
+        // Limitar el máximo al 99%
+        localLevel.value = Math.max(0, Math.min(0.99, percentage))
         handleFaderChange()
       }
       // Si se sale demasiado del área, mantener el valor actual sin actualizar
+    }
+
+    const formatLevelDisplay = (level) => {
+      // Convertir 0-0.99 a -90 hasta +10 (simulando escala dB)
+      // 0 = -90, 0.9 ≈ 0, 0.99 = +10
+      const minDb = -90
+      const maxDb = 10
+      const scaledValue = minDb + (level * (maxDb - minDb))
+      
+      if (scaledValue >= 0) {
+        return `+${scaledValue.toFixed(0)}`
+      } else {
+        return scaledValue.toFixed(0)
+      }
     }
 
     return {
       localLevel,
       handleFaderChange,
       handleTouchStart,
-      handleMouseDown
+      handleMouseDown,
+      formatLevelDisplay
     }
   }
 }

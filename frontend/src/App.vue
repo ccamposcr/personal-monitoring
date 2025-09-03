@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocket } from './composables/useSocket'
 import { useAuth } from './composables/useAuth'
@@ -44,6 +44,7 @@ export default {
     const { user, isAuthenticated, isAdmin, logout: authLogout } = useAuth()
 
     const logout = async () => {
+      disconnect() // Disconnect socket before logout
       await authLogout()
       router.push('/login')
     }
@@ -65,9 +66,8 @@ export default {
       }
     })
 
-    onUnmounted(() => {
-      disconnect()
-    })
+    // Don't auto-disconnect socket on app unmount
+    // Socket should be disconnected explicitly on logout
 
     return {
       socketConnected,

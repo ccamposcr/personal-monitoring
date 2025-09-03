@@ -60,8 +60,12 @@ export function useAuth() {
       auxiliaries.value = response.data.auxiliaries
       return response.data
     } catch (error) {
-      console.error('Error getting user info:', error)
-      // If unauthorized, clear user data
+      // Only log error if it's not a normal 401 (unauthorized)
+      if (error.response?.status !== 401) {
+        console.error('Error getting user info:', error)
+      }
+      
+      // If unauthorized, clear user data (this is expected when not logged in)
       if (error.response?.status === 401) {
         user.value = null
         auxiliaries.value = []
@@ -71,12 +75,26 @@ export function useAuth() {
   }
 
   const checkAuth = async () => {
-    if (user.value) return true
+    // If we already have user data, verify it's still valid
+    if (user.value) {
+      try {
+        // Make a quick request to verify the session is still valid
+        await api.get('/auth/me')
+        return true
+      } catch (error) {
+        // If session is invalid, clear user data (don't log 401 as it's expected)
+        if (error.response?.status === 401) {
+          user.value = null
+          auxiliaries.value = []
+        }
+      }
+    }
     
     try {
       await getUserInfo()
       return true
     } catch (error) {
+      // 401 errors are expected when not authenticated, so we don't need to log them
       return false
     }
   }
@@ -84,10 +102,22 @@ export function useAuth() {
   // Admin functions
   const getUsers = async () => {
     try {
+      // First check if we have a valid user session
+      if (!user.value) {
+        await getUserInfo()
+      }
+      
       const response = await api.get('/admin/users')
       return response.data.users
     } catch (error) {
       console.error('Error getting users:', error)
+      
+      // If unauthorized, clear user data
+      if (error.response?.status === 401) {
+        user.value = null
+        auxiliaries.value = []
+      }
+      
       throw error
     }
   }
