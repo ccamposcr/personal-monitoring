@@ -38,12 +38,6 @@
             {{ loading ? 'Iniciando sesión...' : 'Iniciar Sesión' }}
           </button>
         </form>
-
-        <div class="login-help">
-          <p><strong>Usuario por defecto:</strong></p>
-          <p>Usuario: <code>produccion</code></p>
-          <p>Contraseña: <code>12345</code></p>
-        </div>
       </div>
     </div>
   </div>
