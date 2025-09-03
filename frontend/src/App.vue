@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <header class="app-header">
-      <h1>XR18 Monitor Mixer</h1>
+      <h1>ICCR Monitoreo Personal</h1>
       <div class="connection-status" :class="{ connected: socketConnected }">
         {{ socketConnected ? 'Conectado' : 'Desconectado' }}
       </div>

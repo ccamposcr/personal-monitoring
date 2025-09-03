@@ -31,18 +31,11 @@
       />
     </div>
     
-    <button 
-      class="mute-button"
-      :class="{ muted: channel.muted }"
-      @click="toggleMute"
-    >
-      {{ channel.muted ? 'UNMUTE' : 'MUTE' }}
-    </button>
   </div>
 </template>
 
 <script>
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 
 export default {
   name: 'ChannelStrip',
@@ -59,7 +52,6 @@ export default {
   emits: ['level-change'],
   setup(props, { emit }) {
     const localLevel = ref(props.channel.level || 0)
-    const previousLevel = ref(0.75)
     const isDragging = ref(false)
     let updateTimeout = null
 
@@ -81,11 +73,6 @@ export default {
       }, 100)
     }
 
-    const toggleMute = () => {
-      const newMutedState = !props.channel.muted
-      console.log(`ChannelStrip - toggleMute: Ch${props.channel.number}, current=${props.channel.muted}, new=${newMutedState}`)
-      emit('mute-change', props.channel.number, newMutedState)
-    }
 
     const handleTouchStart = (event) => {
       event.preventDefault()
@@ -153,7 +140,6 @@ export default {
     return {
       localLevel,
       handleFaderChange,
-      toggleMute,
       handleTouchStart,
       handleMouseDown
     }

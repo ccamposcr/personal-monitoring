@@ -1,0 +1,28 @@
+{
+  "channels": {
+    "1": "Mic 1",
+    "2": "Mic 2",
+    "3": "Piano",
+    "4": "Click",
+    "5": "Guitarra",
+    "6": "Bajo",
+    "7": "TalkBack",
+    "8": "Mic Pastor",
+    "9": "Mic Tavo",
+    "10": "Mic Nata",
+    "11": "Mic Andrés",
+    "12": "Bombo",
+    "13": "Caja",
+    "14": "Aereo Izq",
+    "15": "Aereo Der",
+    "16": "Canal 16"
+  },
+  "auxiliaries": {
+    "1": "Monitor Voces",
+    "2": "Monitor Batería", 
+    "3": "Monitor Piano",
+    "4": "Monitor Bajo",
+    "5": "Monitor Guitarra",
+    "6": "Monitor Piso"
+  }
+}

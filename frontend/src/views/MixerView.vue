@@ -40,7 +40,6 @@
           :channel="channel"
           :aux-number="currentAuxData.auxNumber"
           @level-change="handleLevelChange"
-          @mute-change="handleMuteChange"
         />
       </div>
     </div>
@@ -109,16 +108,6 @@ export default {
       }
     }
 
-    const handleMuteChange = (channelNumber, muted) => {
-      if (socket && currentAuxData.value) {
-        console.log(`MixerView - enviando toggle-channel-mute: Ch${channelNumber}, Aux${currentAuxData.value.auxNumber}, muted=${muted}`)
-        socket.value.emit('toggle-channel-mute', {
-          auxNumber: currentAuxData.value.auxNumber,
-          channelNumber,
-          muted
-        })
-      }
-    }
 
     onMounted(() => {
       connect()
@@ -157,18 +146,6 @@ export default {
           }
         })
 
-        socket.value.on('channel-mute-updated', (data) => {
-          console.log(`MixerView - recibido channel-mute-updated: Ch${data.channelNumber}, muted=${data.muted}`)
-          if (currentAuxData.value) {
-            const channel = currentAuxData.value.channels.find(
-              ch => ch.number === data.channelNumber
-            )
-            if (channel) {
-              console.log(`Actualizando canal ${channel.number}: muted ${channel.muted} -> ${data.muted}`)
-              channel.muted = data.muted
-            }
-          }
-        })
 
         socket.value.on('error', (message) => {
           error.value = message
@@ -184,7 +161,6 @@ export default {
         socket.value.off('auxiliary-data')
         socket.value.off('user-count-updated')
         socket.value.off('channel-updated')
-        socket.value.off('channel-mute-updated')
         socket.value.off('error')
       }
     })
@@ -198,8 +174,7 @@ export default {
       error,
       connectedUsers,
       joinAuxiliary,
-      handleLevelChange,
-      handleMuteChange
+      handleLevelChange
     }
   }
 }

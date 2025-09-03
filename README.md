@@ -1,4 +1,4 @@
-# XR18 Monitor Mixer App
+# ICCR Monitoreo Personal App
 
 Una aplicación web completa para permitir a músicos y cantantes crear sus propias mezclas de monitores personales usando una mixer Behringer XR18.
 

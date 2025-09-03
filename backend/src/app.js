@@ -29,6 +29,18 @@ const xr18 = new XR18Controller();
 const connectedUsers = new Map();
 const auxiliaryUsers = new Map();
 
+// Configurar callback para sincronización en tiempo real
+xr18.setLevelChangeCallback((data) => {
+  const { auxNumber, channelNumber, level } = data;
+  console.log(`Sincronizando cambio: Ch${channelNumber} Aux${auxNumber} = ${level.toFixed(3)}`);
+  
+  // Broadcast el cambio a todos los usuarios conectados a este auxiliar
+  io.to(`aux-${auxNumber}`).emit('channel-updated', {
+    channelNumber,
+    level
+  });
+});
+
 io.on('connection', (socket) => {
   console.log('Usuario conectado:', socket.id);
   
@@ -48,6 +60,8 @@ io.on('connection', (socket) => {
       currentUsers.delete(socket.id);
       if (currentUsers.size === 0) {
         auxiliaryUsers.delete(user.currentAux);
+        // Parar polling activo si no quedan usuarios en este auxiliar
+        xr18.stopActivePolling(user.currentAux);
       } else {
         auxiliaryUsers.set(user.currentAux, currentUsers);
       }
@@ -65,6 +79,11 @@ io.on('connection', (socket) => {
       const auxData = await xr18.getAuxiliaryLevels(auxNumber);
       socket.emit('auxiliary-data', auxData);
       io.to(`aux-${auxNumber}`).emit('user-count-updated', auxUsers.size);
+      
+      // Iniciar polling activo para este auxiliar si es el primer usuario
+      if (auxUsers.size === 1) {
+        xr18.startActivePolling(auxNumber);
+      }
     } catch (error) {
       console.error('Error obteniendo datos del auxiliar:', error);
       socket.emit('error', 'No se pudo conectar con la mixer XR18');
@@ -86,22 +105,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('toggle-channel-mute', async (data) => {
-    const { auxNumber, channelNumber, muted } = data;
-    console.log(`Socket recibido - toggle-channel-mute: Ch${channelNumber}, Aux${auxNumber}, muted=${muted}`);
-    
-    try {
-      const result = await xr18.muteChannel(auxNumber, channelNumber, muted);
-      console.log(`Enviando channel-mute-updated:`, result);
-      io.to(`aux-${auxNumber}`).emit('channel-mute-updated', {
-        channelNumber,
-        muted
-      });
-    } catch (error) {
-      console.error('Error actualizando mute:', error);
-      socket.emit('error', 'Error actualizando el mute del canal');
-    }
-  });
 
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);
@@ -113,6 +116,8 @@ io.on('connection', (socket) => {
         auxUsers.delete(socket.id);
         if (auxUsers.size === 0) {
           auxiliaryUsers.delete(user.currentAux);
+          // Parar polling activo si no quedan usuarios en este auxiliar
+          xr18.stopActivePolling(user.currentAux);
         } else {
           auxiliaryUsers.set(user.currentAux, auxUsers);
         }
@@ -132,7 +137,7 @@ app.get('/auxiliaries', (req, res) => {
   console.log(`GET /auxiliaries - IP: ${req.ip}, User-Agent: ${req.get('User-Agent')}`);
   const auxiliaries = Array.from({ length: 6 }, (_, i) => ({
     id: i + 1,
-    name: `Auxiliar ${i + 1}`,
+    name: xr18.getAuxiliaryName(i + 1),
     userCount: auxiliaryUsers.get(i + 1)?.size || 0
   }));
   console.log('Enviando auxiliares:', auxiliaries);

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🎛️  Instalando XR18 Monitor Mixer App..."
+echo "🎛️  Instalando ICCR Monitoreo Personal App..."
 
 echo "📦 Instalando dependencias del backend..."
 cd backend
