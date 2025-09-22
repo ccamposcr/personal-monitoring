@@ -4,7 +4,9 @@
       "Bash(npm install)",
       "Bash(sudo chown:*)",
       "Bash(chmod:*)",
-      "Bash(sudo:*)"
+      "Bash(sudo:*)",
+      "Bash(npm run dev:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

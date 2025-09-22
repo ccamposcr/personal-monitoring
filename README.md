@@ -51,7 +51,7 @@ Configura tu archivo `.env`:
 PORT=3000
 XR18_IP=192.168.1.100  # IP de tu mixer XR18
 XR18_PORT=10024        # Puerto OSC de la XR18
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost
 ```
 
 ### Frontend
@@ -85,7 +85,7 @@ cd frontend
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:5173`
+La aplicación estará disponible en `http://localhost`
 
 ### 3. Conectar con la XR18
 

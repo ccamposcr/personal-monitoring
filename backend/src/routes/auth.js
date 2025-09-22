@@ -3,6 +3,22 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 function createAuthRoutes(database) {
+  // Get all users for dropdown
+  router.get('/users', async (req, res) => {
+    try {
+      const users = await database.getAllUsers();
+      // Only return username and role for security
+      const userList = users.map(user => ({
+        username: user.username,
+        role: user.role
+      }));
+      res.json({ users: userList });
+    } catch (error) {
+      console.error('Error getting users:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Login route
   router.post('/login', async (req, res) => {
     try {

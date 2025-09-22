@@ -24,19 +24,25 @@ function getLocalNetworkIP() {
  */
 function generateCorsOrigins() {
   const localIP = getLocalNetworkIP();
-  const ports = [3000, 4173, 5173, 8080];
+  const ports = [80, 3000];
   
   const origins = [
-    process.env.FRONTEND_URL || "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:4173", 
-    "http://localhost:8080"
+    process.env.FRONTEND_URL || "http://localhost",
+    "http://localhost",        // Puerto 80 sin especificar
+    "http://localhost:80",     // Puerto 80 explícito
+    "http://localhost:3000"    // Backend API
   ];
   
   // Add origins for the detected local IP
   if (localIP !== '127.0.0.1') {
     ports.forEach(port => {
-      origins.push(`http://${localIP}:${port}`);
+      if (port === 80) {
+        // For port 80, add both with and without port (since 80 is default HTTP port)
+        origins.push(`http://${localIP}`);
+        origins.push(`http://${localIP}:${port}`);
+      } else {
+        origins.push(`http://${localIP}:${port}`);
+      }
     });
   }
   
