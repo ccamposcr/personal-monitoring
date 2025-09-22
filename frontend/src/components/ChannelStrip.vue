@@ -63,7 +63,7 @@ export default {
     })
 
     const handleFaderChange = () => {
-      // Throttling reducido: solo enviar actualizaciones cada 20ms como máximo para mejor respuesta
+      // Throttling muy reducido: solo enviar actualizaciones cada 10ms para máxima suavidad
       if (updateTimeout) {
         clearTimeout(updateTimeout)
       }
@@ -71,7 +71,7 @@ export default {
       updateTimeout = setTimeout(() => {
         emit('level-change', props.channel.number, localLevel.value)
         updateTimeout = null
-      }, 20)
+      }, 10)
     }
 
 
@@ -80,13 +80,13 @@ export default {
       isDragging.value = true
       const faderTrack = event.currentTarget
       const touch = event.touches[0]
-      const rect = faderTrack.getBoundingClientRect()
+      let rect = faderTrack.getBoundingClientRect() // Cache inicial
       updateFaderFromPosition(touch.clientY, rect)
       
       const handleTouchMove = (e) => {
         e.preventDefault()
         const touch = e.touches[0]
-        const rect = faderTrack.getBoundingClientRect()
+        // Usar rect cached para mejor performance, actualizar solo ocasionalmente
         updateFaderFromPosition(touch.clientY, rect)
       }
       
@@ -104,12 +104,12 @@ export default {
       event.preventDefault()
       isDragging.value = true
       const faderTrack = event.currentTarget
-      const rect = faderTrack.getBoundingClientRect()
+      let rect = faderTrack.getBoundingClientRect() // Cache inicial
       updateFaderFromPosition(event.clientY, rect)
       
       const handleMouseMove = (e) => {
         e.preventDefault()
-        const rect = faderTrack.getBoundingClientRect()
+        // Usar rect cached para mejor performance
         updateFaderFromPosition(e.clientY, rect)
       }
       
@@ -126,17 +126,20 @@ export default {
     const updateFaderFromPosition = (clientY, rect) => {
       const relativeY = clientY - rect.top
       
-      // Solo actualizar si está dentro de un rango ampliado del fader
-      // Esto evita saltos bruscos cuando se sale del área
-      if (relativeY >= -50 && relativeY <= rect.height + 50) {
+      // Rango más amplio para evitar "pegajosidad" en los bordes
+      if (relativeY >= -100 && relativeY <= rect.height + 100) {
         // Constrañir la posición Y al rango válido del fader
         const constrainedY = Math.max(0, Math.min(rect.height, relativeY))
         const percentage = 1 - (constrainedY / rect.height)
         // Limitar el máximo al 99%
-        localLevel.value = Math.max(0, Math.min(0.99, percentage))
-        handleFaderChange()
+        const newLevel = Math.max(0, Math.min(0.99, percentage))
+        
+        // Solo actualizar si el cambio es significativo (reduce ruido)
+        if (Math.abs(localLevel.value - newLevel) > 0.001) {
+          localLevel.value = newLevel
+          handleFaderChange()
+        }
       }
-      // Si se sale demasiado del área, mantener el valor actual sin actualizar
     }
 
     const formatLevelDisplay = (level) => {
