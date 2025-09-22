@@ -63,7 +63,7 @@ export default {
     })
 
     const handleFaderChange = () => {
-      // Throttling: solo enviar actualizaciones cada 100ms como máximo
+      // Throttling reducido: solo enviar actualizaciones cada 20ms como máximo para mejor respuesta
       if (updateTimeout) {
         clearTimeout(updateTimeout)
       }
@@ -71,7 +71,7 @@ export default {
       updateTimeout = setTimeout(() => {
         emit('level-change', props.channel.number, localLevel.value)
         updateTimeout = null
-      }, 100)
+      }, 20)
     }
 
 
@@ -140,17 +140,9 @@ export default {
     }
 
     const formatLevelDisplay = (level) => {
-      // Convertir 0-0.99 a -90 hasta +10 (simulando escala dB)
-      // 0 = -90, 0.9 ≈ 0, 0.99 = +10
-      const minDb = -90
-      const maxDb = 10
-      const scaledValue = minDb + (level * (maxDb - minDb))
-      
-      if (scaledValue >= 0) {
-        return `+${scaledValue.toFixed(0)}`
-      } else {
-        return scaledValue.toFixed(0)
-      }
+      // Convertir 0-0.99 a 0% hasta 99%
+      const percentage = Math.round(level * 100)
+      return `${percentage}%`
     }
 
     return {

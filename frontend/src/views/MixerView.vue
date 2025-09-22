@@ -98,6 +98,15 @@ export default {
 
     const handleLevelChange = (channelNumber, level) => {
       if (socket && currentAuxData.value) {
+        // Actualización visual instantánea para eliminar el delay percibido
+        const channel = currentAuxData.value.channels.find(
+          ch => ch.number === channelNumber
+        )
+        if (channel) {
+          channel.level = level
+        }
+        
+        // Enviar al backend de forma asíncrona
         socket.value.emit('update-channel-level', {
           auxNumber: currentAuxData.value.auxNumber,
           channelNumber,

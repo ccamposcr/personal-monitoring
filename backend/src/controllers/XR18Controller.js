@@ -349,7 +349,7 @@ class XR18Controller {
       if (this.client && this.connected && this.shouldPoll()) {
         this.requestAllLevels();
       }
-    }, 5000); // Reducido a cada 5 segundos
+    }, 3000); // Reducido a cada 3 segundos para mejor sincronización
     
     // También solicitar con más frecuencia para auxiliares activos
     this.activeAuxPolling = new Map();
@@ -386,11 +386,15 @@ class XR18Controller {
     }
     
     console.log(`Iniciando polling activo para auxiliar ${auxNumber}`);
+    
+    // Limpiar cualquier throttling previo para este auxiliar para evitar problemas de estado
+    this.clearAuxiliaryThrottling(auxNumber);
+    
     const intervalId = setInterval(() => {
       if (this.client && this.connected && this.shouldPoll()) {
         this.requestAuxiliaryLevels(auxNumber);
       }
-    }, 2000); // Reducido a cada 2 segundos
+    }, 1000); // Reducido a cada 1 segundo para auxiliares activos
     
     this.activeAuxPolling.set(auxNumber, intervalId);
   }
@@ -402,6 +406,22 @@ class XR18Controller {
       this.activeAuxPolling.delete(auxNumber);
       console.log(`Deteniendo polling activo para auxiliar ${auxNumber}`);
     }
+    
+    // Limpiar throttling cache para este auxiliar para evitar problemas de estado
+    this.clearAuxiliaryThrottling(auxNumber);
+  }
+
+  clearAuxiliaryThrottling(auxNumber) {
+    console.log(`Limpiando cache de throttling para auxiliar ${auxNumber}`);
+    for (let ch = 1; ch <= this.channels; ch++) {
+      const key = `ch${ch}-aux${auxNumber}`;
+      this.lastUpdateTime.delete(key);
+    }
+  }
+
+  clearAllThrottling() {
+    console.log(`Limpiando todo el cache de throttling`);
+    this.lastUpdateTime.clear();
   }
 
   requestAuxiliaryLevels(auxNumber) {
@@ -529,7 +549,7 @@ class XR18Controller {
     if (channelsWithData > 0) {
       const channelsWithLevels = channels.filter(ch => ch.level > 0);
       if (channelsWithLevels.length > 0) {
-        console.log(`🎵 Canales activos:`, channelsWithLevels.map(ch => `Ch${ch.number}(${(ch.level * 100).toFixed(0)}%)`).join(', '));
+        console.log(`🎵 Canales activos:`, channelsWithLevels.map(ch => `Ch${ch.number}(${Math.min(99, Math.round(ch.level * 100))}%)`).join(', '));
       }
     }
 
@@ -551,8 +571,8 @@ class XR18Controller {
     const now = Date.now();
     const lastUpdate = this.lastUpdateTime.get(key) || 0;
     
-    // Throttling: solo enviar si han pasado al menos 50ms desde la última actualización
-    if (now - lastUpdate < 50) {
+    // Throttling mínimo: solo enviar si han pasado al menos 5ms desde la última actualización
+    if (now - lastUpdate < 5) {
       console.log(`Throttling update for ${key} - too frequent`);
       return {
         channelNumber,
@@ -595,6 +615,41 @@ class XR18Controller {
       names[aux] = this.getAuxiliaryName(aux);
     }
     return names;
+  }
+
+  async resetAllChannelsToMinimum() {
+    if (!this.client || !this.connected) {
+      console.log('⚠️ No se pueden resetear canales: no conectado a la mixer');
+      return;
+    }
+
+    console.log('🔄 Reseteando todos los canales a nivel mínimo en todos los auxiliares...');
+    
+    const resetPromises = [];
+    for (let aux = 1; aux <= this.auxiliaries; aux++) {
+      for (let ch = 1; ch <= this.channels; ch++) {
+        // Crear promesa para cada reset con un pequeño delay para evitar saturar la comunicación OSC
+        const promise = new Promise((resolve) => {
+          setTimeout(async () => {
+            try {
+              await this.setChannelLevel(aux, ch, 0); // 0 = nivel mínimo
+              resolve();
+            } catch (error) {
+              console.error(`Error reseteando Ch${ch}/Aux${aux}:`, error);
+              resolve(); // Continuar aunque falle uno
+            }
+          }, (aux - 1) * this.channels * 3 + (ch - 1) * 3); // Delay escalonado reducido de 3ms entre canales
+        });
+        resetPromises.push(promise);
+      }
+    }
+
+    try {
+      await Promise.all(resetPromises);
+      console.log('✅ Todos los canales han sido reseteados a nivel mínimo');
+    } catch (error) {
+      console.error('❌ Error durante el reseteo de canales:', error);
+    }
   }
 
   disconnect() {

@@ -225,6 +225,16 @@ database.init().then(() => {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);
     xr18.connect();
+    
+    // Limpiar cualquier throttling previo y resetear todos los canales a mínimo después de la conexión
+    setTimeout(async () => {
+      try {
+        xr18.clearAllThrottling(); // Limpiar estado de throttling previo
+        await xr18.resetAllChannelsToMinimum();
+      } catch (error) {
+        console.error('Error durante reseteo inicial de canales:', error);
+      }
+    }, 3000); // Esperar 3 segundos para asegurar que la conexión esté establecida
   });
 }).catch((error) => {
   console.error('❌ Failed to initialize database:', error);
