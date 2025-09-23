@@ -24,37 +24,3 @@ export function getBackendUrl() {
   return `${protocol}//${hostname}:3000`;
 }
 
-/**
- * Alternative approach: Try to detect local network IP
- * This is more complex but can work in some scenarios
- */
-export async function detectLocalIP() {
-  try {
-    // This uses WebRTC to detect local IP
-    const pc = new RTCPeerConnection({
-      iceServers: []
-    });
-    
-    pc.createDataChannel('');
-    
-    return new Promise((resolve) => {
-      pc.onicecandidate = (ice) => {
-        if (!ice || !ice.candidate || !ice.candidate.candidate) return;
-        
-        const myIP = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/.exec(ice.candidate.candidate);
-        if (myIP) {
-          resolve(myIP[1]);
-          pc.close();
-        }
-      };
-      
-      pc.createOffer().then(offer => pc.setLocalDescription(offer));
-      
-      // Fallback after 2 seconds
-      setTimeout(() => resolve(null), 2000);
-    });
-  } catch (error) {
-    console.warn('Could not detect local IP:', error);
-    return null;
-  }
-}

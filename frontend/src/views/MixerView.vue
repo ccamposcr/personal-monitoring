@@ -47,11 +47,10 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useSocket } from '@/composables/useSocket'
 import { useAuth } from '@/composables/useAuth'
 import ChannelStrip from '@/components/ChannelStrip.vue'
-import { getBackendUrl } from '@/utils/networkUtils.js'
 
 export default {
   name: 'MixerView',

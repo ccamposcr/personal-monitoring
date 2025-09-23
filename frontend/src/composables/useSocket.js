@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import io from 'socket.io-client'
 import { getBackendUrl } from '../utils/networkUtils.js'
 
