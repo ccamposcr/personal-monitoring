@@ -13,8 +13,11 @@ class XR18Controller {
     this.channelData = new Map();
     this.channelNames = new Map();
     this.auxiliaryNames = new Map();
+    this.customChannelNames = new Map();
+    this.customAuxiliaryNames = new Map();
     this.lastUpdateTime = new Map(); // Para throttling
     this.levelChangeCallback = null; // Callback para notificar cambios
+    this.database = null; // Will be set from app.js
     
     this.channels = 16;
     this.auxiliaries = 6;
@@ -26,13 +29,15 @@ class XR18Controller {
   }
 
   loadNamesFromConfig() {
+    // NOTE: This method loads names as fallback only
+    // Primary source of truth is the database, synced from mixer-names.json on startup
     try {
       const configPath = path.join(__dirname, '../../config/mixer-names.json');
       
       if (fs.existsSync(configPath)) {
         const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         
-        // Cargar nombres de canales
+        // Load channel names as fallback (will be overridden by database custom names)
         if (configData.channels) {
           for (let ch = 1; ch <= this.channels; ch++) {
             const name = configData.channels[ch.toString()];
@@ -40,10 +45,10 @@ class XR18Controller {
               this.channelNames.set(ch, name);
             }
           }
-          console.log(`📝 Cargados ${this.channelNames.size} nombres de canales desde config`);
+          console.log(`📝 Loaded ${this.channelNames.size} channel names as fallback from config`);
         }
         
-        // Cargar nombres de auxiliares
+        // Load auxiliary names as fallback (will be overridden by database custom names)
         if (configData.auxiliaries) {
           for (let aux = 1; aux <= this.auxiliaries; aux++) {
             const name = configData.auxiliaries[aux.toString()];
@@ -51,23 +56,23 @@ class XR18Controller {
               this.auxiliaryNames.set(aux, name);
             }
           }
-          console.log(`📝 Cargados ${this.auxiliaryNames.size} nombres de auxiliares desde config`);
+          console.log(`📝 Loaded ${this.auxiliaryNames.size} auxiliary names as fallback from config`);
         }
         
-        console.log('✅ Configuración de nombres cargada exitosamente');
+        console.log('✅ Fallback configuration loaded successfully');
         
-        // Configurar watcher para recargar automáticamente si cambia el archivo
+        // Setup watcher to sync to database when file changes
         this.setupConfigWatcher(configPath);
         
       } else {
-        console.log('⚠️ No se encontró archivo de configuración mixer-names.json');
-        console.log(`📍 Ubicación esperada: ${configPath}`);
-        console.log('💡 Se usarán nombres por defecto (Canal X, Auxiliar X)');
+        console.log('⚠️ mixer-names.json not found');
+        console.log(`📍 Expected location: ${configPath}`);
+        console.log('💡 Will use default names (Canal X, Auxiliar X)');
       }
       
     } catch (error) {
-      console.error('❌ Error cargando configuración de nombres:', error.message);
-      console.log('💡 Se usarán nombres por defecto');
+      console.error('❌ Error loading names config:', error.message);
+      console.log('💡 Will use default names');
     }
   }
 
@@ -78,18 +83,22 @@ class XR18Controller {
         this.configWatcher.close();
       }
       
-      this.configWatcher = fs.watchFile(configPath, { interval: 1000 }, (curr, prev) => {
+      this.configWatcher = fs.watchFile(configPath, { interval: 1000 }, async (curr, prev) => {
         if (curr.mtime > prev.mtime) {
-          console.log('📝 Archivo de configuración modificado - recargando nombres...');
+          console.log('📝 mixer-names.json modified - syncing to database...');
           
-          // Limpiar nombres actuales
-          this.channelNames.clear();
-          this.auxiliaryNames.clear();
+          // Sync to database first
+          if (this.database) {
+            await this.database.syncNamesFromMixerConfig();
+            await this.loadCustomNamesFromDatabase();
+          } else {
+            // Fallback: update local maps directly
+            this.channelNames.clear();
+            this.auxiliaryNames.clear();
+            this.loadNamesFromConfig();
+          }
           
-          // Recargar desde archivo
-          this.loadNamesFromConfig();
-          
-          console.log('🔄 Nombres actualizados automáticamente');
+          console.log('🔄 Names synced from mixer-names.json (source of truth)');
         }
       });
       
@@ -98,6 +107,49 @@ class XR18Controller {
     } catch (error) {
       console.error('❌ Error configurando watcher:', error.message);
     }
+  }
+
+  // Set database reference
+  setDatabase(database) {
+    this.database = database;
+    this.loadCustomNamesFromDatabase();
+  }
+
+  async loadCustomNamesFromDatabase() {
+    if (!this.database) return;
+    
+    try {
+      // Clear existing custom names
+      this.customAuxiliaryNames.clear();
+      this.customChannelNames.clear();
+      
+      // Load custom auxiliary names
+      const auxiliaryNames = await this.database.getAuxiliaryNames();
+      auxiliaryNames.forEach(aux => {
+        this.customAuxiliaryNames.set(aux.auxiliary_id, {
+          name: aux.custom_name,
+          useCustom: aux.use_custom
+        });
+      });
+      
+      // Load custom channel names
+      const channelNames = await this.database.getChannelNames();
+      channelNames.forEach(ch => {
+        this.customChannelNames.set(ch.channel_number, {
+          name: ch.custom_name,
+          useCustom: ch.use_custom
+        });
+      });
+      
+      console.log(`📝 Loaded ${auxiliaryNames.length} auxiliary names and ${channelNames.length} channel names from database`);
+    } catch (error) {
+      console.error('Error loading custom names from database:', error);
+    }
+  }
+
+  // Method to refresh names after database update
+  async refreshCustomNames() {
+    await this.loadCustomNamesFromDatabase();
   }
 
   setupOSCServer() {
@@ -533,7 +585,7 @@ class XR18Controller {
       // Convertir del rango de la mixer (0-1.0) al rango de la UI (0-1)
       // 0.0 = -∞dB, 0.75 = 0dB (unity), 1.0 = +10dB
       const uiLevel = mixerLevel || 0;
-      const name = this.channelNames.get(ch) || `Canal ${ch}`;
+      const name = this.getChannelName(ch);
       
       channels.push({
         number: ch,
@@ -606,7 +658,25 @@ class XR18Controller {
   }
 
   getAuxiliaryName(auxNumber) {
+    // Check if there's a custom name that should be used
+    const customName = this.customAuxiliaryNames.get(auxNumber);
+    if (customName && customName.useCustom) {
+      return customName.name;
+    }
+    
+    // Fallback to config name or default
     return this.auxiliaryNames.get(auxNumber) || `Auxiliar ${auxNumber}`;
+  }
+
+  getChannelName(channelNumber) {
+    // Check if there's a custom name that should be used
+    const customName = this.customChannelNames.get(channelNumber);
+    if (customName && customName.useCustom) {
+      return customName.name;
+    }
+    
+    // Fallback to config name or default
+    return this.channelNames.get(channelNumber) || `Canal ${channelNumber}`;
   }
 
   getAllAuxiliaryNames() {

@@ -178,7 +178,7 @@ io.on('connection', (socket) => {
 
 // Routes
 app.use('/auth', createAuthRoutes(database));
-app.use('/admin', createAdminRoutes(database));
+app.use('/admin', createAdminRoutes(database, xr18));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', mixer: xr18.isConnected() });
@@ -221,6 +221,9 @@ const PORT = process.env.PORT || 3000;
 // Initialize database and start server
 database.init().then(() => {
   console.log('✅ Database initialized successfully');
+  
+  // Set database reference in XR18Controller
+  xr18.setDatabase(database);
   
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);

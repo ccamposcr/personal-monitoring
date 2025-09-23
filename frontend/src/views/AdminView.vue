@@ -7,7 +7,7 @@
 
     <div class="admin-content">
       <!-- User Creation Form -->
-      <div class="admin-section">
+      <div class="admin-section" ref="userFormSection">
         <h2>{{ editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario' }}</h2>
         
         <form @submit.prevent="handleSubmitUser" class="user-form">
@@ -71,10 +71,8 @@
           </div>
         </form>
 
-        <div v-if="message" class="message" :class="messageType">
-          {{ message }}
-        </div>
       </div>
+
 
       <!-- Users List -->
       <div class="admin-section">
@@ -141,6 +139,88 @@
           </table>
         </div>
       </div>
+
+      <!-- Auxiliary Names Management -->
+      <div class="admin-section">
+        <h2>Nombres de Auxiliares</h2>
+        
+        <div v-if="loadingAuxNames" class="loading">
+          Cargando nombres de auxiliares...
+        </div>
+
+        <div v-else class="names-management">
+          <div v-for="aux in auxiliaryNamesList" :key="aux.id" class="name-item">
+            <div class="name-info">
+              <span class="name-label">Auxiliar {{ aux.id }}:</span>
+              <input 
+                v-model="aux.customName" 
+                type="text" 
+                :placeholder="`Auxiliar ${aux.id}`"
+                class="name-input"
+              >
+            </div>
+            <div class="name-controls">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  v-model="aux.useCustom"
+                >
+                Usar nombre personalizado
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="section-actions">
+            <button 
+              @click="updateAllAuxiliaryNames"
+              :disabled="loading"
+              class="section-update-btn"
+            >
+              {{ loading ? 'Actualizando...' : 'Actualizar Auxiliares' }}
+            </button>
+          </div>
+      </div>
+
+      <!-- Channel Names Management -->
+      <div class="admin-section">
+        <h2>Nombres de Canales</h2>
+        
+        <div v-if="loadingChannelNames" class="loading">
+          Cargando nombres de canales...
+        </div>
+
+        <div v-else class="names-management channel-names">
+          <div v-for="ch in channelNamesList" :key="ch.number" class="name-item">
+            <div class="name-info">
+              <span class="name-label">Canal {{ ch.number }}:</span>
+              <input 
+                v-model="ch.customName" 
+                type="text" 
+                :placeholder="`Canal ${ch.number}`"
+                class="name-input"
+              >
+            </div>
+            <div class="name-controls">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  v-model="ch.useCustom"
+                >
+                Usar nombre personalizado
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="section-actions">
+          <button 
+            @click="updateAllChannelNames"
+            :disabled="loading"
+            class="section-update-btn"
+          >
+            {{ loading ? 'Actualizando...' : 'Actualizar Canales' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Password Change Modal -->
@@ -190,11 +270,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirmation Message Modal -->
+    <div v-if="confirmationModal.show" class="modal-overlay" @click="closeConfirmationModal">
+      <div class="modal" @click.stop>
+        <div class="modal-icon" :class="confirmationModal.type">
+          <span v-if="confirmationModal.type === 'success'">✓</span>
+          <span v-else-if="confirmationModal.type === 'error'">✗</span>
+          <span v-else>ℹ</span>
+        </div>
+        <h3>{{ confirmationModal.type === 'error' ? 'Error' : 'Confirmación' }}</h3>
+        <p>{{ confirmationModal.message }}</p>
+        
+        <div class="modal-buttons">
+          <button @click="closeConfirmationModal" class="primary-btn">
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useSocket } from '@/composables/useSocket'
@@ -220,9 +319,14 @@ export default {
     const availableAuxiliaries = ref([])
     const loading = ref(false)
     const loadingUsers = ref(false)
-    const message = ref('')
-    const messageType = ref('')
     const editingUser = ref(null)
+    const userFormSection = ref(null)
+
+    // Names management
+    const auxiliaryNamesList = ref([])
+    const channelNamesList = ref([])
+    const loadingAuxNames = ref(false)
+    const loadingChannelNames = ref(false)
 
     const userForm = reactive({
       username: '',
@@ -242,6 +346,12 @@ export default {
       user: null
     })
 
+    const confirmationModal = reactive({
+      show: false,
+      message: '',
+      type: 'success' // 'success', 'error', 'info'
+    })
+
     const resetForm = () => {
       userForm.username = ''
       userForm.password = ''
@@ -251,12 +361,15 @@ export default {
     }
 
     const showMessage = (msg, type = 'success') => {
-      message.value = msg
-      messageType.value = type
-      setTimeout(() => {
-        message.value = ''
-        messageType.value = ''
-      }, 5000)
+      confirmationModal.message = msg
+      confirmationModal.type = type
+      confirmationModal.show = true
+    }
+
+    const closeConfirmationModal = () => {
+      confirmationModal.show = false
+      confirmationModal.message = ''
+      confirmationModal.type = 'success'
     }
 
     const loadUsers = async () => {
@@ -317,12 +430,21 @@ export default {
       }
     }
 
-    const editUser = (user) => {
+    const editUser = async (user) => {
       editingUser.value = user
       userForm.username = user.username
       userForm.password = ''
       userForm.role = user.role
       userForm.auxiliaries = user.role === 'admin' ? [] : [...user.auxiliaries]
+      
+      // Auto-scroll to the form section on mobile/small screens
+      await nextTick()
+      if (userFormSection.value) {
+        userFormSection.value.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        })
+      }
     }
 
     const cancelEdit = () => {
@@ -393,6 +515,138 @@ export default {
       return new Date(dateString).toLocaleDateString('es-ES')
     }
 
+    // Names management methods
+    const loadAuxiliaryNames = async () => {
+      loadingAuxNames.value = true
+      try {
+        const response = await api.get('/admin/auxiliary-names')
+        const auxNamesData = response.data.auxiliaryNames
+        
+        // Create array for all 6 auxiliaries
+        auxiliaryNamesList.value = Array.from({ length: 6 }, (_, i) => {
+          const auxId = i + 1
+          const existing = auxNamesData.find(aux => aux.auxiliary_id === auxId)
+          return {
+            id: auxId,
+            customName: existing?.custom_name || `Auxiliar ${auxId}`,
+            useCustom: Boolean(existing?.use_custom ?? true)
+          }
+        })
+      } catch (error) {
+        console.error('Error loading auxiliary names:', error)
+        showMessage('Error cargando nombres de auxiliares', 'error')
+      } finally {
+        loadingAuxNames.value = false
+      }
+    }
+
+    const loadChannelNames = async () => {
+      loadingChannelNames.value = true
+      try {
+        const response = await api.get('/admin/channel-names')
+        const channelNamesData = response.data.channelNames
+        
+        // Create array for all 16 channels
+        channelNamesList.value = Array.from({ length: 16 }, (_, i) => {
+          const chNumber = i + 1
+          const existing = channelNamesData.find(ch => ch.channel_number === chNumber)
+          return {
+            number: chNumber,
+            customName: existing?.custom_name || `Canal ${chNumber}`,
+            useCustom: Boolean(existing?.use_custom ?? true)
+          }
+        })
+      } catch (error) {
+        console.error('Error loading channel names:', error)
+        showMessage('Error cargando nombres de canales', 'error')
+      } finally {
+        loadingChannelNames.value = false
+      }
+    }
+
+    const updateAllAuxiliaryNames = async () => {
+      // Validar que ningún nombre esté vacío
+      const invalidAux = auxiliaryNamesList.value.find(aux => !aux.customName.trim())
+      if (invalidAux) {
+        showMessage(`El nombre del auxiliar ${invalidAux.id} no puede estar vacío`, 'error')
+        return
+      }
+      
+      loading.value = true
+      try {
+        let updatedCount = 0
+        let errors = []
+        
+        for (const aux of auxiliaryNamesList.value) {
+          try {
+            await api.put(`/admin/auxiliary-names/${aux.id}`, {
+              customName: aux.customName.trim(),
+              useCustom: aux.useCustom
+            })
+            updatedCount++
+          } catch (error) {
+            console.error(`Error updating auxiliary ${aux.id}:`, error)
+            errors.push(`Auxiliar ${aux.id}`)
+          }
+        }
+        
+        if (errors.length === 0) {
+          showMessage(`✅ ${updatedCount} auxiliares actualizados correctamente`)
+        } else if (updatedCount > 0) {
+          showMessage(`⚠️ ${updatedCount} auxiliares actualizados, ${errors.length} con errores: ${errors.join(', ')}`, 'error')
+        } else {
+          showMessage('❌ Error actualizando todos los auxiliares', 'error')
+        }
+      } catch (error) {
+        console.error('Error in batch auxiliary update:', error)
+        showMessage('Error actualizando auxiliares', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const updateAllChannelNames = async () => {
+      // Validar que ningún nombre esté vacío
+      const invalidChannel = channelNamesList.value.find(ch => !ch.customName.trim())
+      if (invalidChannel) {
+        showMessage(`El nombre del canal ${invalidChannel.number} no puede estar vacío`, 'error')
+        return
+      }
+      
+      loading.value = true
+      try {
+        let updatedCount = 0
+        let errors = []
+        
+        for (const ch of channelNamesList.value) {
+          try {
+            await api.put(`/admin/channel-names/${ch.number}`, {
+              customName: ch.customName.trim(),
+              useCustom: ch.useCustom
+            })
+            updatedCount++
+          } catch (error) {
+            console.error(`Error updating channel ${ch.number}:`, error)
+            errors.push(`Canal ${ch.number}`)
+          }
+        }
+        
+        if (errors.length === 0) {
+          showMessage(`✅ ${updatedCount} canales actualizados correctamente`)
+        } else if (updatedCount > 0) {
+          showMessage(`⚠️ ${updatedCount} canales actualizados, ${errors.length} con errores: ${errors.join(', ')}`, 'error')
+        } else {
+          showMessage('❌ Error actualizando todos los canales', 'error')
+        }
+      } catch (error) {
+        console.error('Error in batch channel update:', error)
+        showMessage('Error actualizando canales', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+
+
     onMounted(async () => {
       // Check authentication first
       try {
@@ -412,6 +666,8 @@ export default {
         // Load data
         await loadUsers()
         await loadAuxiliaries()
+        await loadAuxiliaryNames()
+        await loadChannelNames()
       } catch (error) {
         console.error('Error in admin view initialization:', error)
         // If authentication fails, redirect to login
@@ -425,12 +681,20 @@ export default {
       availableAuxiliaries,
       loading,
       loadingUsers,
-      message,
-      messageType,
       editingUser,
       userForm,
+      userFormSection,
       passwordModal,
       deleteModal,
+      confirmationModal,
+      // Names management
+      auxiliaryNamesList,
+      channelNamesList,
+      loadingAuxNames,
+      loadingChannelNames,
+      updateAllAuxiliaryNames,
+      updateAllChannelNames,
+      // User management
       handleSubmitUser,
       editUser,
       cancelEdit,
@@ -440,6 +704,7 @@ export default {
       confirmDeleteUser,
       closeDeleteModal,
       deleteUser,
+      closeConfirmationModal,
       logout,
       getAuxiliaryName,
       formatDate

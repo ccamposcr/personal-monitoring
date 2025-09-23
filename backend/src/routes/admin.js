@@ -2,7 +2,7 @@ const express = require('express');
 const { requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
-function createAdminRoutes(database) {
+function createAdminRoutes(database, xr18Controller = null) {
   // Apply admin middleware to all routes
   router.use(requireAdmin);
 
@@ -165,6 +165,124 @@ function createAdminRoutes(database) {
       res.json({ success: true });
     } catch (error) {
       console.error('Error changing password:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Auxiliary names management
+  router.get('/auxiliary-names', async (req, res) => {
+    try {
+      const auxiliaryNames = await database.getAuxiliaryNames();
+      res.json({ auxiliaryNames });
+    } catch (error) {
+      console.error('Error getting auxiliary names:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.put('/auxiliary-names/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { customName, useCustom } = req.body;
+      
+      if (!customName || customName.trim() === '') {
+        return res.status(400).json({ error: 'Custom name is required' });
+      }
+
+      await database.setAuxiliaryName(parseInt(id), customName.trim(), useCustom);
+      console.log(`Admin updated auxiliary ${id} name: "${customName}" (use custom: ${useCustom})`);
+      
+      // Refresh XR18Controller names if available
+      if (xr18Controller) {
+        await xr18Controller.refreshCustomNames();
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating auxiliary name:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.patch('/auxiliary-names/:id/toggle', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { useCustom } = req.body;
+      
+      await database.toggleAuxiliaryCustomName(parseInt(id), useCustom);
+      console.log(`Admin toggled auxiliary ${id} custom name: ${useCustom}`);
+      
+      // Refresh XR18Controller names if available
+      if (xr18Controller) {
+        await xr18Controller.refreshCustomNames();
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error toggling auxiliary custom name:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Channel names management
+  router.get('/channel-names', async (req, res) => {
+    try {
+      const channelNames = await database.getChannelNames();
+      res.json({ channelNames });
+    } catch (error) {
+      console.error('Error getting channel names:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.put('/channel-names/:number', async (req, res) => {
+    try {
+      const { number } = req.params;
+      const { customName, useCustom } = req.body;
+      
+      if (!customName || customName.trim() === '') {
+        return res.status(400).json({ error: 'Custom name is required' });
+      }
+
+      if (parseInt(number) < 1 || parseInt(number) > 32) {
+        return res.status(400).json({ error: 'Invalid channel number' });
+      }
+
+      await database.setChannelName(parseInt(number), customName.trim(), useCustom);
+      console.log(`Admin updated channel ${number} name: "${customName}" (use custom: ${useCustom})`);
+      
+      // Refresh XR18Controller names if available
+      if (xr18Controller) {
+        await xr18Controller.refreshCustomNames();
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating channel name:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.patch('/channel-names/:number/toggle', async (req, res) => {
+    try {
+      const { number } = req.params;
+      const { useCustom } = req.body;
+      
+      if (parseInt(number) < 1 || parseInt(number) > 32) {
+        return res.status(400).json({ error: 'Invalid channel number' });
+      }
+
+      await database.toggleChannelCustomName(parseInt(number), useCustom);
+      console.log(`Admin toggled channel ${number} custom name: ${useCustom}`);
+      
+      // Refresh XR18Controller names if available
+      if (xr18Controller) {
+        await xr18Controller.refreshCustomNames();
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error toggling channel custom name:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
