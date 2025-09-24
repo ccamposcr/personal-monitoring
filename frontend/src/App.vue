@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocket } from './composables/useSocket'
 import { useAuth } from './composables/useAuth'
@@ -39,8 +39,7 @@ export default {
   name: 'App',
   setup() {
     const router = useRouter()
-    const socketConnected = ref(false)
-    const { socket, connect, disconnect } = useSocket()
+    const { connected: socketConnected, connect, disconnect } = useSocket()
     const { user, isAuthenticated, isAdmin, logout: authLogout } = useAuth()
 
     const logout = async () => {
@@ -53,16 +52,6 @@ export default {
       // Only connect socket if authenticated
       if (isAuthenticated.value && user.value) {
         connect(user.value)
-        
-        if (socket.value) {
-          socket.value.on('connect', () => {
-            socketConnected.value = true
-          })
-          
-          socket.value.on('disconnect', () => {
-            socketConnected.value = false
-          })
-        }
       }
     })
 
