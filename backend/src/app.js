@@ -152,6 +152,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('request-main-lr-mute-status', async () => {
+    try {
+      console.log('🔊 SOLICITUD Main LR mute status recibida desde cliente:', socket.id);
+      const muteStates = await xr18.requestAllMainLRMuteStates();
+      
+      console.log('📊 Enviando estados mute al cliente:', muteStates);
+      // Send mute states to the requesting client
+      socket.emit('main-lr-mute-status', muteStates);
+      
+    } catch (error) {
+      console.error('❌ Error requesting Main LR mute status:', error);
+      socket.emit('error', 'Error al obtener estado mute de Main LR');
+    }
+  });
+
 
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);

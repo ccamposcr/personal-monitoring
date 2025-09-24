@@ -18,6 +18,7 @@ class XR18Controller {
     this.lastUpdateTime = new Map(); // Para throttling
     this.levelChangeCallback = null; // Callback para notificar cambios
     this.database = null; // Will be set from app.js
+    this.mainLRMuteStates = new Map(); // Track Main LR mute states
     
     this.channels = 16;
     this.auxiliaries = 6;
@@ -210,6 +211,11 @@ class XR18Controller {
     if (address.includes('/mix/') && address.includes('/level')) {
       this.processMixLevelMessage(address, args[0]);
     }
+
+    // Capturar estados de mute Main LR
+    if (address.includes('/mix/on')) {
+      this.processMainLRMuteMessage(address, args[0]);
+    }
     
     
     // Capturar nombres de canales
@@ -266,6 +272,23 @@ class XR18Controller {
           channelNumber: channel,
           level: level
         });
+      }
+    }
+  }
+
+  processMainLRMuteMessage(address, muteState) {
+    const pathParts = address.split('/');
+    const channelIndex = pathParts.findIndex(part => part.startsWith('ch'));
+    
+    if (channelIndex !== -1) {
+      const channel = parseInt(pathParts[channelIndex].replace('ch-', '').replace('ch', ''));
+      const isMuted = muteState === 0; // XR18: 0 = muted, 1 = unmuted
+      
+      const previousMuteState = this.mainLRMuteStates.get(channel);
+      this.mainLRMuteStates.set(channel, isMuted);
+      
+      if (previousMuteState !== isMuted) {
+        console.log(`Main LR Ch${channel} mute estado: ${isMuted ? 'MUTED' : 'LIVE'}`);
       }
     }
   }
@@ -652,6 +675,71 @@ class XR18Controller {
     };
   }
 
+  async muteMainLRChannel(channelNumber) {
+    if (!this.client || !this.connected) {
+      throw new Error('No conectado a la mixer');
+    }
+
+    // Para XR18: /ch/XX/mix/on 0 = muted, 1 = unmuted (Main LR)
+    const address = `/ch/${channelNumber.toString().padStart(2, '0')}/mix/on`;
+    
+    console.log(`Silenciando canal Main LR: ${address} = 0`);
+    this.client.send(address, 0);
+
+    return {
+      channelNumber,
+      muted: true
+    };
+  }
+
+  async unmuteMainLRChannel(channelNumber) {
+    if (!this.client || !this.connected) {
+      throw new Error('No conectado a la mixer');
+    }
+
+    // Para XR18: /ch/XX/mix/on 1 = unmuted (Main LR)
+    const address = `/ch/${channelNumber.toString().padStart(2, '0')}/mix/on`;
+    
+    console.log(`Desmutando canal Main LR: ${address} = 1`);
+    this.client.send(address, 1);
+
+    return {
+      channelNumber,
+      muted: false
+    };
+  }
+
+  async requestAllMainLRMuteStates() {
+    if (!this.client || !this.connected) {
+      throw new Error('No conectado a la mixer');
+    }
+
+    console.log('🔍 Solicitando estados mute Main LR de todos los canales...');
+    
+    // Request mute state for all 16 channels
+    for (let ch = 1; ch <= this.channels; ch++) {
+      const address = `/ch/${ch.toString().padStart(2, '0')}/mix/on`;
+      console.log(`📤 Solicitando: ${address}`);
+      // Send request to mixer
+      this.client.send(address);
+    }
+    
+    // Wait a bit for responses (if mixer is responsive)
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Get current known states
+    const muteStates = [];
+    for (let ch = 1; ch <= this.channels; ch++) {
+      const currentMuteState = this.mainLRMuteStates.get(ch);
+      muteStates.push({
+        channelNumber: ch,
+        muted: currentMuteState !== undefined ? currentMuteState : false // Default to unmuted if unknown
+      });
+      console.log(`📊 Ch${ch}: ${currentMuteState !== undefined ? (currentMuteState ? 'MUTED' : 'LIVE') : 'UNKNOWN (default LIVE)'}`);
+    }
+    
+    return muteStates;
+  }
 
   isConnected() {
     return this.connected;

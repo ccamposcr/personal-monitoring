@@ -17,6 +17,13 @@
         ></div>
       </div>
       
+      <div 
+        v-if="channel.muted"
+        class="mute-status muted"
+      >
+        MUTED
+      </div>
+      
       <input 
         type="range" 
         min="0" 

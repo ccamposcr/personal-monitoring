@@ -10,7 +10,8 @@
       "Bash(node:*)",
       "Bash(pkill:*)",
       "Bash(lsof:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(PORT=3001 npm run dev)"
     ],
     "deny": [],
     "ask": []

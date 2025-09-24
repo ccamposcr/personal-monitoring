@@ -65,18 +65,24 @@ echo Para detener la aplicación, presiona Ctrl+C
 echo.
 
 :: Iniciar backend en segundo plano
-cd ..\backend
-start "XR18 Backend" cmd /c "npm run dev"
+echo Cambiando al directorio backend...
+cd "%~dp0backend"
+echo Directorio actual: %CD%
+echo Iniciando backend...
+start "XR18 Backend" cmd /k "echo Backend iniciado && npm run dev && pause"
 
 :: Esperar un momento para que el backend inicie
 timeout /t 3 /nobreak >nul
 
 :: Iniciar frontend
-cd ..\frontend
-start "XR18 Frontend" cmd /c "npm run dev"
+echo Cambiando al directorio frontend...
+cd "%~dp0frontend"
+echo Directorio actual: %CD%
+echo Iniciando frontend...
+start "XR18 Frontend" cmd /k "echo Frontend iniciado && npm run dev && pause"
 
 :: Esperar un momento y abrir el navegador
-timeout /t 5 /nobreak >nul
+timeout /t 8 /nobreak >nul
 start http://localhost
 
 echo.
@@ -84,9 +90,15 @@ echo =============================================
 echo    Aplicación iniciada exitosamente!
 echo =============================================
 echo.
-echo Las ventanas de los servidores se abrieron en segundo plano.
+echo Se han abierto dos ventanas de comandos:
+echo - Backend (puerto 3000)
+echo - Frontend (puerto 80)
+echo.
 echo La aplicación debería abrirse automáticamente en tu navegador.
 echo.
 echo Si no se abre automáticamente, ve a: http://localhost
 echo.
-pause
+echo Para cerrar la aplicación, cierra ambas ventanas de comando.
+echo.
+echo Presiona cualquier tecla para cerrar esta ventana...
+pause >nul
