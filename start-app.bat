@@ -79,9 +79,9 @@ echo.
 echo Iniciando servidores...
 echo.
 echo Backend corriendo en: http://localhost:3000
-echo Frontend corriendo en: http://localhost:80
+echo Frontend corriendo en: http://localhost:8080
 echo.
-echo Para detener la aplicación, presiona Ctrl+C
+echo Para detener la aplicacion, presiona Ctrl+C
 echo.
 
 :: Iniciar backend en segundo plano
@@ -111,7 +111,7 @@ echo Esperando 8 segundos antes de abrir el navegador...
 timeout /t 8 /nobreak >nul
 echo.
 echo Abriendo navegador...
-start http://localhost
+start http://localhost:8080
 
 echo.
 echo =============================================
@@ -120,11 +120,11 @@ echo =============================================
 echo.
 echo Se han abierto dos ventanas de comandos:
 echo - Backend (puerto 3000)
-echo - Frontend (puerto 80)
+echo - Frontend (puerto 8080)
 echo.
 echo La aplicacion deberia abrirse automaticamente en tu navegador.
 echo.
-echo Si no se abre automaticamente, ve a: http://localhost
+echo Si no se abre automaticamente, ve a: http://localhost:8080
 echo.
 echo Para cerrar la aplicacion, cierra ambas ventanas de comando.
 echo.

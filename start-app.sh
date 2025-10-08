@@ -75,7 +75,7 @@ echo
 echo "Iniciando servidores..."
 echo
 echo "Backend corriendo en: http://localhost:3000"
-echo "Frontend corriendo en: http://localhost:80"
+echo "Frontend corriendo en: http://localhost:8080"
 echo
 echo "Para detener la aplicación, presiona Ctrl+C"
 echo
@@ -99,13 +99,13 @@ sleep 5
 # Intentar abrir el navegador (funciona en macOS y Linux)
 if command_exists open; then
     # macOS
-    open http://localhost
+    open http://localhost:8080
 elif command_exists xdg-open; then
     # Linux
-    xdg-open http://localhost >/dev/null 2>&1
+    xdg-open http://localhost:8080 >/dev/null 2>&1
 elif command_exists sensible-browser; then
     # Linux alternativo
-    sensible-browser http://localhost >/dev/null 2>&1
+    sensible-browser http://localhost:8080 >/dev/null 2>&1
 fi
 
 echo
@@ -116,7 +116,7 @@ echo
 echo "Los servidores están corriendo en segundo plano."
 echo "La aplicación debería abrirse automáticamente en tu navegador."
 echo
-echo "Si no se abre automáticamente, ve a: http://localhost"
+echo "Si no se abre automáticamente, ve a: http://localhost:8080"
 echo
 echo "Presiona Ctrl+C para detener la aplicación..."
 echo
