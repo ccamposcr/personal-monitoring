@@ -77,23 +77,29 @@ if not exist "node_modules\" (
 )
 
 echo.
+echo =============================================
 echo Todas las dependencias estan instaladas
+echo =============================================
 echo.
 echo Iniciando servidores...
 echo.
 echo Backend corriendo en: http://localhost:3000
 echo Frontend corriendo en: http://localhost:8080
 echo.
-echo Para detener la aplicacion, presiona Ctrl+C
-echo.
 
 :: Iniciar backend en segundo plano
 echo Cambiando al directorio backend...
 cd "%~dp0backend"
-echo Directorio actual: %CD%
+if not exist "package.json" (
+    echo ERROR: No se encuentra package.json en el directorio backend
+    echo Directorio actual: %CD%
+    pause
+    exit /b 1
+)
 echo.
 echo Iniciando backend...
-start "XR18 Backend" cmd /k "cd /d "%~dp0backend" && echo === Backend Iniciado === && npm run dev"
+start "XR18 Backend" cmd /k "cd /d "%~dp0backend" && npm run dev"
+echo Backend iniciado en nueva ventana
 
 :: Esperar un momento para que el backend inicie
 echo Esperando 3 segundos para que el backend inicie...
@@ -103,18 +109,25 @@ timeout /t 3 /nobreak >nul
 echo.
 echo Cambiando al directorio frontend...
 cd "%~dp0frontend"
-echo Directorio actual: %CD%
+if not exist "package.json" (
+    echo ERROR: No se encuentra package.json en el directorio frontend
+    echo Directorio actual: %CD%
+    pause
+    exit /b 1
+)
 echo.
 echo Iniciando frontend...
-start "XR18 Frontend" cmd /k "cd /d "%~dp0frontend" && echo === Frontend Iniciado === && npm run dev"
+start "XR18 Frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"
+echo Frontend iniciado en nueva ventana
 
 :: Esperar un momento y abrir el navegador
 echo.
-echo Esperando 8 segundos antes de abrir el navegador...
-timeout /t 8 /nobreak >nul
+echo Esperando 5 segundos antes de abrir el navegador...
+timeout /t 5 /nobreak >nul
 echo.
 echo Abriendo navegador...
 start http://localhost:8080
+echo Navegador abierto
 
 echo.
 echo =============================================
@@ -131,5 +144,17 @@ echo Si no se abre automaticamente, ve a: http://localhost:8080
 echo.
 echo Para cerrar la aplicacion, cierra ambas ventanas de comando.
 echo.
+echo =============================================
+echo IMPORTANTE: NO cierres esta ventana todavia!
+echo Mantener esta ventana abierta ayuda a monitorear el proceso.
+echo =============================================
+echo.
 echo Presiona cualquier tecla para cerrar esta ventana...
+echo (Las aplicaciones seguiran corriendo en las otras ventanas)
+echo.
 pause >nul
+
+echo.
+echo Cerrando ventana de inicio...
+echo Las aplicaciones siguen corriendo en las otras ventanas.
+timeout /t 2 >nul
