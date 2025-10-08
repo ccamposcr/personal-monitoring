@@ -53,7 +53,7 @@ const auxiliaryUsers = new Map();
 xr18.setLevelChangeCallback((data) => {
   const { auxNumber, channelNumber, level } = data;
   console.log(`Sincronizando cambio: Ch${channelNumber} Aux${auxNumber} = ${level.toFixed(3)}`);
-  
+
   // Broadcast el cambio a todos los usuarios conectados a este auxiliar
   io.to(`aux-${auxNumber}`).emit('channel-updated', {
     channelNumber,
@@ -126,7 +126,7 @@ io.on('connection', (socket) => {
       const auxData = await xr18.getAuxiliaryLevels(auxNumber);
       socket.emit('auxiliary-data', auxData);
       io.to(`aux-${auxNumber}`).emit('user-count-updated', auxUsers.size);
-      
+
       // Iniciar polling activo para este auxiliar si es el primer usuario
       if (auxUsers.size === 1) {
         xr18.startActivePolling(auxNumber);
@@ -151,22 +151,6 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Error actualizando el canal');
     }
   });
-
-  socket.on('request-main-lr-mute-status', async () => {
-    try {
-      console.log('🔊 SOLICITUD Main LR mute status recibida desde cliente:', socket.id);
-      const muteStates = await xr18.requestAllMainLRMuteStates();
-      
-      console.log('📊 Enviando estados mute al cliente:', muteStates);
-      // Send mute states to the requesting client
-      socket.emit('main-lr-mute-status', muteStates);
-      
-    } catch (error) {
-      console.error('❌ Error requesting Main LR mute status:', error);
-      socket.emit('error', 'Error al obtener estado mute de Main LR');
-    }
-  });
-
 
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);

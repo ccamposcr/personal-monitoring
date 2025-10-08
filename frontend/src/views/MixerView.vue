@@ -66,7 +66,6 @@ export default {
     const loading = ref(false)
     const error = ref('')
     const connectedUsers = ref(0)
-    let muteStatusInterval = null
 
     const loadAuxiliaries = async () => {
       try {
@@ -115,17 +114,6 @@ export default {
       }
     }
 
-    const requestMainLRMuteStatus = () => {
-      if (socket && socket.value) {
-        console.log('🔊 Solicitando estado Main LR mute desde frontend...')
-        socket.value.emit('request-main-lr-mute-status')
-        console.log('✅ Solicitud enviada al backend')
-      } else {
-        console.log('❌ Socket no disponible para solicitar estado mute')
-      }
-    }
-
-
     onMounted(() => {
       if (user.value) {
         connect(user.value)
@@ -135,41 +123,16 @@ export default {
       if (socket.value) {
         socket.value.on('connect', () => {
           loadAuxiliaries()
-          // Request initial mute status
-          setTimeout(() => {
-            requestMainLRMuteStatus()
-          }, 2000)
-          
-          // Set up periodic mute status updates every 30 seconds
-          muteStatusInterval = setInterval(() => {
-            requestMainLRMuteStatus()
-          }, 30000) // 30 seconds
         })
 
         socket.value.on('disconnect', () => {
           currentAuxData.value = null
           connectedUsers.value = 0
-          // Clear mute status interval on disconnect
-          if (muteStatusInterval) {
-            clearInterval(muteStatusInterval)
-            muteStatusInterval = null
-          }
         })
 
         socket.value.on('auxiliary-data', (data) => {
-          // Initialize mute state for all channels if not present
-          data.channels.forEach(channel => {
-            if (channel.muted === undefined) {
-              channel.muted = false
-            }
-          })
           currentAuxData.value = data
           loading.value = false
-          
-          // Request Main LR mute status when auxiliary data is loaded
-          setTimeout(() => {
-            requestMainLRMuteStatus()
-          }, 500)
         })
 
         socket.value.on('user-count-updated', (count) => {
@@ -188,31 +151,6 @@ export default {
           }
         })
 
-        socket.value.on('main-lr-mute-updated', (data) => {
-          if (currentAuxData.value) {
-            const channel = currentAuxData.value.channels.find(
-              ch => ch.number === data.channelNumber
-            )
-            if (channel) {
-              channel.muted = data.muted
-            }
-          }
-        })
-
-        socket.value.on('main-lr-mute-status', (muteStates) => {
-          console.log('Recibidos estados Main LR mute:', muteStates)
-          if (currentAuxData.value) {
-            muteStates.forEach(muteState => {
-              const channel = currentAuxData.value.channels.find(
-                ch => ch.number === muteState.channelNumber
-              )
-              if (channel) {
-                channel.muted = muteState.muted
-              }
-            })
-          }
-        })
-
         socket.value.on('error', (message) => {
           error.value = message
           loading.value = false
@@ -221,12 +159,6 @@ export default {
     })
 
     onUnmounted(() => {
-      // Clear mute status interval
-      if (muteStatusInterval) {
-        clearInterval(muteStatusInterval)
-        muteStatusInterval = null
-      }
-      
       // Remove specific event listeners when component unmounts
       // but don't disconnect the socket as it's shared
       if (socket && socket.value) {
@@ -234,8 +166,6 @@ export default {
           socket.value.off('auxiliary-data')
           socket.value.off('user-count-updated')
           socket.value.off('channel-updated')
-          socket.value.off('main-lr-mute-updated')
-          socket.value.off('main-lr-mute-status')
           socket.value.off('error')
           // Keep 'connect' and 'disconnect' listeners as they're global
         } catch (error) {

@@ -9,21 +9,14 @@
       
       <div class="fader-track" @touchstart="handleTouchStart" @mousedown="handleMouseDown">
         <div class="fader-fill" :style="{ height: `${localLevel * 100}%` }"></div>
-        <div 
-          class="fader-thumb" 
+        <div
+          class="fader-thumb"
           :style="{ bottom: `${localLevel * 100}%` }"
           @touchstart="handleTouchStart"
           @mousedown="handleMouseDown"
         ></div>
       </div>
-      
-      <div 
-        v-if="channel.muted"
-        class="mute-status muted"
-      >
-        MUTED
-      </div>
-      
+
       <input 
         type="range" 
         min="0" 

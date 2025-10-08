@@ -11,7 +11,9 @@
       "Bash(pkill:*)",
       "Bash(lsof:*)",
       "Bash(npm install:*)",
-      "Bash(PORT=3001 npm run dev)"
+      "Bash(PORT=3001 npm run dev)",
+      "Bash(xargs kill:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
