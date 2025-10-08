@@ -42,43 +42,93 @@ echo.
 :: Instalar dependencias del backend si es necesario
 echo Verificando dependencias del backend...
 cd backend
+if errorlevel 1 (
+    echo ERROR: No se pudo acceder al directorio backend
+    pause
+    exit /b 1
+)
+
+echo Directorio actual: %CD%
+
 if not exist "node_modules\" (
+    echo.
+    echo =============================================
     echo Instalando dependencias del backend...
-    echo Esto puede tomar unos minutos...
-    npm install
+    echo Esto puede tomar varios minutos...
+    echo Por favor NO cierres esta ventana.
+    echo =============================================
+    echo.
+
+    npm install 2>&1
+
     if errorlevel 1 (
+        echo.
+        echo =============================================
         echo ERROR: Fallo la instalacion de dependencias del backend
+        echo =============================================
+        echo.
+        echo Revisa el error anterior para mas detalles.
         echo.
         pause
         exit /b 1
     )
-    echo Dependencias del backend instaladas correctamente
+
+    echo.
+    echo =============================================
+    echo Dependencias del backend instaladas correctamente!
+    echo =============================================
+    echo.
 ) else (
-    echo Dependencias del backend ya instaladas
+    echo Dependencias del backend ya instaladas (omitiendo instalacion)
 )
 echo.
 
 :: Instalar dependencias del frontend si es necesario
 echo Verificando dependencias del frontend...
 cd ..\frontend
+if errorlevel 1 (
+    echo ERROR: No se pudo acceder al directorio frontend
+    pause
+    exit /b 1
+)
+
+echo Directorio actual: %CD%
+
 if not exist "node_modules\" (
+    echo.
+    echo =============================================
     echo Instalando dependencias del frontend...
-    echo Esto puede tomar unos minutos...
-    npm install
+    echo Esto puede tomar varios minutos...
+    echo Por favor NO cierres esta ventana.
+    echo =============================================
+    echo.
+
+    npm install 2>&1
+
     if errorlevel 1 (
+        echo.
+        echo =============================================
         echo ERROR: Fallo la instalacion de dependencias del frontend
+        echo =============================================
+        echo.
+        echo Revisa el error anterior para mas detalles.
         echo.
         pause
         exit /b 1
     )
-    echo Dependencias del frontend instaladas correctamente
+
+    echo.
+    echo =============================================
+    echo Dependencias del frontend instaladas correctamente!
+    echo =============================================
+    echo.
 ) else (
-    echo Dependencias del frontend ya instaladas
+    echo Dependencias del frontend ya instaladas (omitiendo instalacion)
 )
 
 echo.
 echo =============================================
-echo Todas las dependencias estan instaladas
+echo TODAS las dependencias estan instaladas!
 echo =============================================
 echo.
 echo Iniciando servidores...
