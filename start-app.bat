@@ -1,4 +1,6 @@
 @echo off
+setlocal enabledelayedexpansion
+
 echo =============================================
 echo    Personal Monitoring XR18 - Iniciando...
 echo =============================================
@@ -6,28 +8,27 @@ echo.
 
 :: Verificar que Node.js esté instalado
 echo Verificando Node.js...
-node --version >nul 2>&1
-if %errorlevel% neq 0 (
+where node >nul 2>&1
+if errorlevel 1 (
     echo ERROR: Node.js no esta instalado.
     echo Por favor instala Node.js desde https://nodejs.org/
     echo.
     pause
     exit /b 1
 )
-echo Node.js encontrado:
-node --version
+echo Node.js encontrado
+echo.
 
 :: Verificar que npm esté instalado
 echo Verificando npm...
-npm --version >nul 2>&1
-if %errorlevel% neq 0 (
+where npm >nul 2>&1
+if errorlevel 1 (
     echo ERROR: npm no esta disponible.
     echo.
     pause
     exit /b 1
 )
-echo npm encontrado:
-npm --version
+echo npm encontrado
 echo.
 echo Node.js y npm detectados correctamente
 echo.
@@ -41,16 +42,17 @@ echo.
 :: Instalar dependencias del backend si es necesario
 echo Verificando dependencias del backend...
 cd backend
-echo Directorio backend: %CD%
 if not exist "node_modules\" (
     echo Instalando dependencias del backend...
-    call npm install
-    if %errorlevel% neq 0 (
+    echo Esto puede tomar unos minutos...
+    npm install
+    if errorlevel 1 (
         echo ERROR: Fallo la instalacion de dependencias del backend
         echo.
         pause
         exit /b 1
     )
+    echo Dependencias del backend instaladas correctamente
 ) else (
     echo Dependencias del backend ya instaladas
 )
@@ -59,16 +61,17 @@ echo.
 :: Instalar dependencias del frontend si es necesario
 echo Verificando dependencias del frontend...
 cd ..\frontend
-echo Directorio frontend: %CD%
 if not exist "node_modules\" (
     echo Instalando dependencias del frontend...
-    call npm install
-    if %errorlevel% neq 0 (
+    echo Esto puede tomar unos minutos...
+    npm install
+    if errorlevel 1 (
         echo ERROR: Fallo la instalacion de dependencias del frontend
         echo.
         pause
         exit /b 1
     )
+    echo Dependencias del frontend instaladas correctamente
 ) else (
     echo Dependencias del frontend ya instaladas
 )
