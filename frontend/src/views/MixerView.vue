@@ -123,6 +123,10 @@ export default {
       if (socket.value) {
         socket.value.on('connect', () => {
           loadAuxiliaries()
+          // Re-join auxiliary if one was selected before disconnect
+          if (selectedAux.value) {
+            joinAuxiliary()
+          }
         })
 
         socket.value.on('disconnect', () => {
