@@ -16,15 +16,12 @@ echo   1. Abre una terminal en la carpeta 'backend' y ejecuta: npm install
 echo   2. Abre una terminal en la carpeta 'frontend' y ejecuta: npm install
 echo   3. Luego ejecuta este script nuevamente.
 echo.
-pause
-echo.
 
 :: Verificar que existan las dependencias
 if not exist "backend\node_modules\" (
     echo ERROR: No se encontraron dependencias del backend.
     echo Por favor ejecuta 'npm install' en la carpeta backend primero.
     echo.
-    pause
     exit /b 1
 )
 
@@ -32,7 +29,6 @@ if not exist "frontend\node_modules\" (
     echo ERROR: No se encontraron dependencias del frontend.
     echo Por favor ejecuta 'npm install' en la carpeta frontend primero.
     echo.
-    pause
     exit /b 1
 )
 
@@ -75,5 +71,3 @@ echo - Frontend en puerto 8080
 echo.
 echo Para detener la aplicacion, cierra ambas ventanas.
 echo.
-echo Presiona cualquier tecla para cerrar esta ventana...
-pause >nul
