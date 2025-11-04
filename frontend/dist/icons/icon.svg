@@ -1,0 +1,24 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#2196f3"/>
+  
+  <!-- Sound wave icon -->
+  <g fill="white">
+    <!-- Center circle (speaker) -->
+    <circle cx="200" cy="256" r="20"/>
+    
+    <!-- Sound waves -->
+    <path d="M240 216 Q280 236 280 256 Q280 276 240 296" stroke="white" stroke-width="8" fill="none"/>
+    <path d="M300 186 Q360 216 360 256 Q360 296 300 326" stroke="white" stroke-width="8" fill="none"/>
+    <path d="M380 156 Q460 196 460 256 Q460 316 380 356" stroke="white" stroke-width="8" fill="none"/>
+    
+    <!-- Equalizer bars -->
+    <rect x="140" y="220" width="12" height="72" rx="6"/>
+    <rect x="120" y="200" width="12" height="112" rx="6"/>
+    <rect x="100" y="180" width="12" height="152" rx="6"/>
+    <rect x="80" y="240" width="12" height="32" rx="6"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="420" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="36" font-weight="bold">ICCR</text>
+</svg>

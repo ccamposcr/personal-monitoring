@@ -21,26 +21,34 @@
           <router-link v-if="isAdmin" to="/admin" class="nav-link admin-link">
             Admin
           </router-link>
+          <button v-if="showInstallButton" @click="promptInstall" class="install-btn">📱 Instalar</button>
           <button @click="logout" class="logout-btn">Salir</button>
         </nav>
       </div>
     </header>
     <router-view />
+    <PWAInstallPrompt />
   </div>
 </template>
 
 <script>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocket } from './composables/useSocket'
 import { useAuth } from './composables/useAuth'
+import PWAInstallPrompt from './components/PWAInstallPrompt.vue'
 
 export default {
   name: 'App',
+  components: {
+    PWAInstallPrompt
+  },
   setup() {
     const router = useRouter()
     const { connected: socketConnected, connect, disconnect } = useSocket()
     const { user, isAuthenticated, isAdmin, logout: authLogout } = useAuth()
+    const showInstallButton = ref(false)
+    const deferredPrompt = ref(null)
 
     const logout = async () => {
       disconnect() // Disconnect socket before logout
@@ -48,11 +56,56 @@ export default {
       router.push('/login')
     }
 
+    const promptInstall = () => {
+      if (deferredPrompt.value) {
+        deferredPrompt.value.prompt()
+        deferredPrompt.value.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt')
+          }
+          deferredPrompt.value = null
+          showInstallButton.value = false
+        })
+      } else {
+        // iOS Safari
+        alert('Para instalar en iOS:\n1. Toca el botón compartir (⬆️)\n2. Selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir"')
+      }
+    }
+
     onMounted(() => {
       // Only connect socket if authenticated
       if (isAuthenticated.value && user.value) {
         connect(user.value)
       }
+
+      // Check if already running as PWA
+      if (window.matchMedia('(display-mode: standalone)').matches || 
+          window.navigator.standalone === true) {
+        return
+      }
+
+      // PWA install detection
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault()
+        deferredPrompt.value = e
+        showInstallButton.value = true
+      })
+
+      // For iOS Safari - always show button after 2 seconds
+      setTimeout(() => {
+        if (!deferredPrompt.value) {
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+          if (isIOS && isSafari) {
+            showInstallButton.value = true
+          }
+        }
+      }, 2000)
+
+      window.addEventListener('appinstalled', () => {
+        showInstallButton.value = false
+        deferredPrompt.value = null
+      })
     })
 
     // Don't auto-disconnect socket on app unmount
@@ -63,7 +116,9 @@ export default {
       user,
       isAuthenticated,
       isAdmin,
-      logout
+      logout,
+      showInstallButton,
+      promptInstall
     }
   }
 }
@@ -181,6 +236,24 @@ export default {
   border-color: transparent;
 }
 
+.install-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.install-btn:hover {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
 .logout-btn {
   background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
   color: white;
@@ -228,7 +301,8 @@ export default {
   }
   
   .nav-link,
-  .logout-btn {
+  .logout-btn,
+  .install-btn {
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
   }

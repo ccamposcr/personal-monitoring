@@ -19,6 +19,16 @@ export default defineConfig({
   },
   server: {
     port: 8080,
-    host: true
+    host: '0.0.0.0', // Allow access from any IP in local network
+    strictPort: true,
+    open: false
+  },
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      }
+    }
   }
 })

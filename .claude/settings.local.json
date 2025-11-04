@@ -13,7 +13,15 @@
       "Bash(npm install:*)",
       "Bash(PORT=3001 npm run dev)",
       "Bash(xargs kill:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(for size in 72 96 128 144 152 192 384 512)",
+      "Bash(do cp icon-192x192.png icon-$sizex$size.png)",
+      "Bash(done)",
+      "Bash(do echo \"Creating $sizex$size icon...\")",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(for size in 72 96 128 144 152 384 512)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

@@ -27,15 +27,17 @@ function generateCorsOrigins() {
   const ports = [8080, 3000];
 
   const origins = [
-    process.env.FRONTEND_URL || "http://localhost:8080",
-    "http://localhost:8080",   // Puerto 8080 del frontend
-    "http://localhost:3000"    // Backend API
+    process.env.FRONTEND_URL || "https://localhost:8080",
+    "https://localhost:8080",   // Puerto 8080 del frontend HTTPS
+    "http://localhost:8080",    // Puerto 8080 del frontend HTTP (fallback)
+    "http://localhost:3000"     // Backend API
   ];
 
-  // Add origins for the detected local IP
+  // Add origins for the detected local IP (both HTTP and HTTPS)
   if (localIP !== '127.0.0.1') {
     ports.forEach(port => {
-      origins.push(`http://${localIP}:${port}`);
+      origins.push(`https://${localIP}:${port}`); // HTTPS
+      origins.push(`http://${localIP}:${port}`);  // HTTP fallback
     });
   }
 

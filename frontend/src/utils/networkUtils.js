@@ -8,13 +8,13 @@ export function getBackendUrl() {
     // Use the current hostname but replace with detected IP if available
     const hostname = window.location.hostname;
     
-    // If we're already on a local IP, use it
+    // Backend is always HTTP in development (port 3000)
+    // Frontend can be HTTPS (port 8080) but backend stays HTTP
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
       return `http://${hostname}:3000`;
     }
     
-    // For localhost, we'll need to make a best guess
-    // This could be enhanced with network detection if needed
+    // For localhost, always use HTTP for backend
     return 'http://localhost:3000';
   }
   

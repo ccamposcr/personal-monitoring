@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create PWA Icons</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon(192)">Download 192x192</button>
+    <button onclick="downloadIcon(512)">Download 512x512</button>
+    <button onclick="createAllSizes()">Create All Sizes</button>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawIcon() {
+            // Background circle
+            ctx.fillStyle = '#2196f3';
+            ctx.beginPath();
+            ctx.arc(256, 256, 256, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // White content
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 8;
+
+            // Sound waves
+            ctx.beginPath();
+            ctx.arc(256, 256, 60, -Math.PI/4, Math.PI/4, false);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(256, 256, 100, -Math.PI/3, Math.PI/3, false);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(256, 256, 140, -Math.PI/2.5, Math.PI/2.5, false);
+            ctx.stroke();
+
+            // Speaker
+            ctx.fillRect(180, 220, 40, 72);
+            ctx.fillRect(160, 240, 20, 32);
+
+            // Equalizer bars
+            ctx.fillRect(300, 180, 12, 152);
+            ctx.fillRect(320, 200, 12, 112);
+            ctx.fillRect(340, 220, 12, 72);
+            ctx.fillRect(360, 240, 12, 32);
+
+            // Text "ICCR"
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('ICCR', 256, 400);
+        }
+
+        function downloadIcon(size) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = size;
+            tempCanvas.height = size;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCtx.drawImage(canvas, 0, 0, size, size);
+            
+            tempCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}x${size}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function createAllSizes() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            sizes.forEach(size => {
+                setTimeout(() => downloadIcon(size), size);
+            });
+        }
+
+        // Draw the icon when page loads
+        drawIcon();
+    </script>
+</body>
+</html>
