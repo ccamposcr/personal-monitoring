@@ -8,9 +8,10 @@ const connected = ref(false)
 export function useSocket() {
   const connect = (user = null) => {
     if (!socket.value && user) {
+      const token = localStorage.getItem('auth_token');
       socket.value = io(import.meta.env.VITE_BACKEND_URL || getBackendUrl(), {
         auth: {
-          session: { user }
+          token: token
         }
       })
       

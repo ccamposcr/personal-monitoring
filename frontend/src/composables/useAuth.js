@@ -12,32 +12,78 @@ const api = axios.create({
   withCredentials: true
 })
 
+// Initialize JWT token if available
+const initializeAuth = () => {
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  }
+}
+
+// Initialize on module load
+initializeAuth()
+
 export function useAuth() {
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
 
-  const login = async (username, password) => {
+  const login = async (username, password, retryCount = 0) => {
+    const maxRetries = 3
+    const baseDelay = 1000 // 1 second
+    
     loading.value = true
     try {
+      // Add cache-busting headers for Safari iOS
       const response = await api.post('/auth/login', {
         username,
         password
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       })
 
       if (response.data.success) {
         user.value = response.data.user
+        
+        // Store JWT token (always provided now)
+        localStorage.setItem('auth_token', response.data.token)
+        // Add token to future requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`
+        
         await getUserInfo() // Get auxiliaries
         return { success: true }
       } else {
         return { success: false, error: 'Login failed' }
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error(`Login error (attempt ${retryCount + 1}):`, error)
+      
+      // Retry logic for specific error conditions (NO retry on 401 - invalid credentials)
+      const shouldRetry = (
+        retryCount < maxRetries && 
+        (
+          error.code === 'NETWORK_ERROR' ||
+          error.response?.status >= 500
+        )
+      )
+      
+      if (shouldRetry) {
+        const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff
+        console.log(`Retrying login in ${delay}ms... (attempt ${retryCount + 2}/${maxRetries + 1})`)
+        
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return login(username, password, retryCount + 1)
+      }
+      
       return { 
         success: false, 
         error: error.response?.data?.error || 'Error de conexión'
       }
     } finally {
+      // Always set loading false if no retry is happening
       loading.value = false
     }
   }
@@ -50,6 +96,10 @@ export function useAuth() {
     } finally {
       user.value = null
       auxiliaries.value = []
+      
+      // Clear JWT token
+      localStorage.removeItem('auth_token')
+      delete api.defaults.headers.common['Authorization']
     }
   }
 

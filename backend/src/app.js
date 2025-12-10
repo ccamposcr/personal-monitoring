@@ -2,7 +2,6 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const session = require('express-session');
 require('dotenv').config();
 
 const XR18Controller = require('./controllers/XR18Controller');
@@ -11,6 +10,7 @@ const Database = require('./models/database');
 const createAuthRoutes = require('./routes/auth');
 const createAdminRoutes = require('./routes/admin');
 const { requireAuth, checkAuxiliaryAccess } = require('./middleware/auth');
+const { requireJWT } = require('./middleware/jwt');
 
 const app = express();
 const server = createServer(app);
@@ -22,19 +22,6 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// Session middleware
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'xr18-monitor-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // Local network app, no HTTPS required
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax' // 'lax' works better for iOS Safari
-  }
-}));
 
 const io = new Server(server, {
   cors: {
@@ -74,12 +61,18 @@ xr18.setLevelChangeCallback((data) => {
 
 // Socket.IO authentication middleware
 io.use((socket, next) => {
-  const sessionData = socket.handshake.auth.session;
-  if (!sessionData || !sessionData.user) {
-    return next(new Error('Authentication error'));
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('No token provided'));
   }
   
-  socket.user = sessionData.user;
+  const { verifyToken } = require('./middleware/jwt');
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return next(new Error('Invalid token'));
+  }
+  
+  socket.user = decoded;
   next();
 });
 
@@ -208,16 +201,17 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', mixer: xr18.isConnected() });
 });
 
-app.get('/auxiliaries', requireAuth, async (req, res) => {
+app.get('/auxiliaries', requireJWT, async (req, res) => {
   try {
-    console.log(`GET /auxiliaries - User: ${req.session.user.username} (${req.session.user.role})`);
+    const user = req.user;
+    console.log(`GET /auxiliaries - User: ${user.username} (${user.role})`);
     
     let allowedAuxiliaries;
     
-    if (req.session.user.role === 'admin') {
+    if (user.role === 'admin') {
       allowedAuxiliaries = [1, 2, 3, 4, 5, 6];
     } else {
-      allowedAuxiliaries = await database.getUserAuxiliaries(req.session.user.id);
+      allowedAuxiliaries = await database.getUserAuxiliaries(user.id);
     }
 
     const allAuxiliaries = Array.from({ length: 6 }, (_, i) => ({
@@ -228,7 +222,7 @@ app.get('/auxiliaries', requireAuth, async (req, res) => {
     }));
 
     // Filter to only show allowed auxiliaries for regular users
-    const auxiliaries = req.session.user.role === 'admin' ? 
+    const auxiliaries = user.role === 'admin' ? 
       allAuxiliaries : 
       allAuxiliaries.filter(aux => aux.allowed);
 
