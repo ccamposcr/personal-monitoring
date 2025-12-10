@@ -33,6 +33,24 @@
 
     <div v-if="currentAuxData && !loading" class="mixer-channels">
       <h2>{{ currentAuxData.name }}</h2>
+      
+      <!-- Master Volume Fader -->
+      <div class="master-fader-section">
+        <h3>Volumen Principal</h3>
+        <div class="master-fader-container">
+          <div class="master-level-display">{{ formatLevelDisplay(masterLevel) }}</div>
+          <div class="master-fader-track" @touchstart="handleMasterTouchStart" @mousedown="handleMasterMouseDown">
+            <div class="master-fader-fill" :style="{ width: `${masterLevel * 100}%` }"></div>
+            <div
+              class="master-fader-thumb"
+              :style="{ left: `${masterLevel * 100}%` }"
+              @touchstart="handleMasterTouchStart"
+              @mousedown="handleMasterMouseDown"
+            ></div>
+          </div>
+        </div>
+      </div>
+      
       <div class="channels-grid">
         <ChannelStrip 
           v-for="channel in currentAuxData.channels"
@@ -66,6 +84,8 @@ export default {
     const loading = ref(false)
     const error = ref('')
     const connectedUsers = ref(0)
+    const masterLevel = ref(0)
+    const isDraggingMaster = ref(false)
 
     const loadAuxiliaries = async () => {
       try {
@@ -114,6 +134,82 @@ export default {
       }
     }
 
+    const handleMasterLevelChange = () => {
+      if (socket && currentAuxData.value) {
+        // Enviar cambio de volumen principal
+        socket.value.emit('update-master-level', {
+          auxNumber: currentAuxData.value.auxNumber,
+          level: masterLevel.value
+        })
+      }
+    }
+
+    const formatLevelDisplay = (level) => {
+      const percentage = Math.round(level * 100)
+      return `${percentage}%`
+    }
+
+    const handleMasterTouchStart = (event) => {
+      event.preventDefault()
+      isDraggingMaster.value = true
+      const faderTrack = event.currentTarget
+      const touch = event.touches[0]
+      let rect = faderTrack.getBoundingClientRect()
+      updateMasterFaderFromPosition(touch.clientX, rect)
+      
+      const handleTouchMove = (e) => {
+        e.preventDefault()
+        const touch = e.touches[0]
+        updateMasterFaderFromPosition(touch.clientX, rect)
+      }
+      
+      const handleTouchEnd = () => {
+        isDraggingMaster.value = false
+        document.removeEventListener('touchmove', handleTouchMove)
+        document.removeEventListener('touchend', handleTouchEnd)
+      }
+      
+      document.addEventListener('touchmove', handleTouchMove, { passive: false })
+      document.addEventListener('touchend', handleTouchEnd)
+    }
+
+    const handleMasterMouseDown = (event) => {
+      event.preventDefault()
+      isDraggingMaster.value = true
+      const faderTrack = event.currentTarget
+      let rect = faderTrack.getBoundingClientRect()
+      updateMasterFaderFromPosition(event.clientX, rect)
+      
+      const handleMouseMove = (e) => {
+        e.preventDefault()
+        updateMasterFaderFromPosition(e.clientX, rect)
+      }
+      
+      const handleMouseUp = () => {
+        isDraggingMaster.value = false
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+      
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }
+
+    const updateMasterFaderFromPosition = (clientX, rect) => {
+      const relativeX = clientX - rect.left
+      
+      if (relativeX >= -100 && relativeX <= rect.width + 100) {
+        const constrainedX = Math.max(0, Math.min(rect.width, relativeX))
+        const percentage = constrainedX / rect.width
+        const newLevel = Math.max(0, Math.min(0.99, percentage))
+        
+        if (Math.abs(masterLevel.value - newLevel) > 0.001) {
+          masterLevel.value = newLevel
+          handleMasterLevelChange()
+        }
+      }
+    }
+
     onMounted(() => {
       if (user.value) {
         connect(user.value)
@@ -136,6 +232,7 @@ export default {
 
         socket.value.on('auxiliary-data', (data) => {
           currentAuxData.value = data
+          masterLevel.value = data.masterLevel || 0.0
           loading.value = false
         })
 
@@ -155,6 +252,12 @@ export default {
           }
         })
 
+        socket.value.on('master-level-updated', (data) => {
+          if (currentAuxData.value && !isDraggingMaster.value) {
+            masterLevel.value = data.level
+          }
+        })
+
         socket.value.on('error', (message) => {
           error.value = message
           loading.value = false
@@ -170,6 +273,7 @@ export default {
           socket.value.off('auxiliary-data')
           socket.value.off('user-count-updated')
           socket.value.off('channel-updated')
+          socket.value.off('master-level-updated')
           socket.value.off('error')
           // Keep 'connect' and 'disconnect' listeners as they're global
         } catch (error) {
@@ -186,11 +290,124 @@ export default {
       loading,
       error,
       connectedUsers,
+      masterLevel,
       joinAuxiliary,
-      handleLevelChange
+      handleLevelChange,
+      handleMasterTouchStart,
+      handleMasterMouseDown,
+      formatLevelDisplay
     }
   }
 }
 </script>
 
+<style scoped>
+.master-fader-section {
+  padding: 15px;
+  margin: 20px 0;
+}
 
+.master-fader-section h3 {
+  color: #000;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  text-align: center;
+}
+
+.master-fader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.master-level-display {
+  color: #000;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  min-height: 20px;
+  text-align: center;
+}
+
+.master-fader-track {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.master-fader-fill {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(to right, #4a90e2, #7bb3f0);
+  border-radius: 9px 0 0 9px;
+  transition: width 0.05s ease;
+}
+
+.master-fader-thumb {
+  position: absolute;
+  width: 15px;
+  height: 30px;
+  background: #fff;
+  border: 2px solid #4a90e2;
+  border-radius: 3px;
+  top: -6px;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transform: translateX(-50%);
+}
+
+.master-fader-thumb:active {
+  cursor: grabbing;
+  background: #f0f0f0;
+}
+
+.mixer-channels {
+  padding: 20px;
+}
+
+.mixer-channels h2 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 10px;
+}
+
+@media (max-width: 768px) {
+  .master-fader-container {
+    max-width: 300px;
+  }
+  
+  .master-fader-track {
+    height: 18px;
+  }
+  
+  .master-fader-thumb {
+    width: 12px;
+    height: 24px;
+    top: -4px;
+  }
+  
+  .channels-grid {
+    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+    gap: 15px;
+    padding: 0 5px;
+  }
+}
+</style>

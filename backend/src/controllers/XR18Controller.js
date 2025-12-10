@@ -15,6 +15,7 @@ class XR18Controller {
     this.auxiliaryNames = new Map();
     this.customChannelNames = new Map();
     this.customAuxiliaryNames = new Map();
+    this.auxiliaryMasterLevels = new Map();
     this.lastUpdateTime = new Map(); // Para throttling
     this.levelChangeCallback = null; // Callback para notificar cambios
     this.database = null; // Will be set from app.js
@@ -211,60 +212,87 @@ class XR18Controller {
       this.processMixLevelMessage(address, args[0]);
     }
 
-    // Capturar nombres de canales
-    if (address.includes('/config/name') && args[0]) {
+    // Capturar niveles de volumen principal de auxiliares (bus mix faders)
+    if (address.includes('/bus/') && address.includes('/mix/fader')) {
       const pathParts = address.split('/');
-      const channelIndex = pathParts.findIndex(part => part.startsWith('ch'));
+      const busIndex = pathParts.findIndex(part => part === 'bus') + 1;
       
-      if (channelIndex !== -1) {
-        const channel = parseInt(pathParts[channelIndex].replace('ch-', '').replace('ch', ''));
-        this.channelNames.set(channel, args[0]);
-        console.log(`Nombre canal recibido: Ch${channel} = "${args[0]}"`);
+      if (busIndex > 0) {
+        const bus = parseInt(pathParts[busIndex]);
+        if (bus >= 1 && bus <= 6) {
+          const previousLevel = this.auxiliaryMasterLevels.get(bus);
+          this.auxiliaryMasterLevels.set(bus, args[0]);
+          
+          console.log(`Master level actualizado: Aux${bus} bus/mix/fader = ${args[0].toFixed(3)}`);
+          
+          // Notificar cambio si hay callback y el nivel cambió significativamente
+          const threshold = 0.001;
+          if (this.levelChangeCallback && Math.abs((previousLevel || 0.0) - args[0]) > threshold) {
+            this.levelChangeCallback({
+              type: 'master-level',
+              auxNumber: bus,
+              level: args[0]
+            });
+          }
+        }
+      }
+    }
+
+    // Capturar nombres de canales - formato: /ch/X/config/name
+    if (address.includes('/ch/') && address.includes('/config/name') && args[0]) {
+      const pathParts = address.split('/');
+      
+      if (pathParts.length >= 4 && pathParts[1] === 'ch' && pathParts[3] === 'config' && pathParts[4] === 'name') {
+        const channel = parseInt(pathParts[2]);
+        if (channel >= 1 && channel <= this.channels) {
+          this.channelNames.set(channel, args[0]);
+          console.log(`Nombre canal recibido de mixer: Ch${channel} = "${args[0]}"`);
+        }
       }
     }
     
-    // Capturar nombres de auxiliares
+    // Capturar nombres de auxiliares - formato: /bus/X/config/name
     if (address.includes('/bus/') && address.includes('/config/name') && args[0]) {
       const pathParts = address.split('/');
-      const busIndex = pathParts.findIndex(part => part.startsWith('bus'));
       
-      if (busIndex !== -1) {
-        const bus = parseInt(pathParts[busIndex].replace('bus-', '').replace('bus', ''));
+      if (pathParts.length >= 4 && pathParts[1] === 'bus' && pathParts[3] === 'config' && pathParts[4] === 'name') {
+        const bus = parseInt(pathParts[2]);
         // Los buses 1-6 corresponden a los auxiliares 1-6 en XR18
         if (bus >= 1 && bus <= 6) {
           this.auxiliaryNames.set(bus, args[0]);
-          console.log(`Nombre auxiliar recibido: Bus${bus}/Aux${bus} = "${args[0]}"`);
+          console.log(`Nombre auxiliar recibido de mixer: Bus${bus}/Aux${bus} = "${args[0]}"`);
         }
       }
     }
   }
 
   processMixLevelMessage(address, level) {
+    // Formato esperado: /ch/X/mix/Y/level
     const pathParts = address.split('/');
-    const channelIndex = pathParts.findIndex(part => part.startsWith('ch'));
-    const mixIndex = pathParts.findIndex(part => part.startsWith('mix'));
     
-    if (channelIndex !== -1 && mixIndex !== -1) {
-      const channel = parseInt(pathParts[channelIndex].replace('ch-', '').replace('ch', ''));
-      const aux = parseInt(pathParts[mixIndex].replace('mix-', '').replace('mix', ''));
+    if (pathParts.length >= 6 && pathParts[1] === 'ch' && pathParts[3] === 'mix' && pathParts[5] === 'level') {
+      const channel = parseInt(pathParts[2]);
+      const aux = parseInt(pathParts[4]);
       
-      const key = `ch${channel}-aux${aux}`;
-      const previousLevel = this.channelData.get(key);
-      this.channelData.set(key, level);
-      
-      // Solo mostrar log si el nivel realmente cambió significativamente
-      const threshold = 0.001; // Evitar ruido de pequeños cambios
-      if (Math.abs((previousLevel || 0) - level) > threshold) {
-        console.log(`Nivel cambió: Ch${channel}/Aux${aux} ${previousLevel?.toFixed(3) || 'undefined'} -> ${level.toFixed(3)}`);
-      }
-      
-      // Notificar cambio si hay un callback registrado y el nivel cambió significativamente
-      if (this.levelChangeCallback && Math.abs((previousLevel || 0) - level) > threshold) {
-        this.levelChangeCallback({
-          auxNumber: aux,
-          channelNumber: channel,
-          level: level
-        });
+      if (channel >= 1 && channel <= this.channels && aux >= 1 && aux <= this.auxiliaries) {
+        const key = `ch${channel}-aux${aux}`;
+        const previousLevel = this.channelData.get(key);
+        this.channelData.set(key, level);
+        
+        // Solo mostrar log si el nivel realmente cambió significativamente
+        const threshold = 0.001; // Evitar ruido de pequeños cambios
+        if (Math.abs((previousLevel || 0) - level) > threshold) {
+          console.log(`Nivel cambió: Ch${channel}/Aux${aux} ${previousLevel?.toFixed(3) || 'undefined'} -> ${level.toFixed(3)}`);
+        }
+        
+        // Notificar cambio si hay un callback registrado y el nivel cambió significativamente
+        if (this.levelChangeCallback && Math.abs((previousLevel || 0) - level) > threshold) {
+          this.levelChangeCallback({
+            auxNumber: aux,
+            channelNumber: channel,
+            level: level
+          });
+        }
       }
     }
   }
@@ -286,6 +314,7 @@ class XR18Controller {
         this.requestAllLevels();
         this.requestChannelNames();
         this.requestAuxiliaryNames();
+        this.requestAuxiliaryMasterLevels();
         
         // Configurar solicitud periódica de niveles para mantener sincronización
         this.setupPeriodicSync();
@@ -344,7 +373,7 @@ class XR18Controller {
     for (let aux = 1; aux <= this.auxiliaries; aux++) {
       for (let ch = 1; ch <= this.channels; ch++) {
         const meterAddress = `/meters`;
-        const levelPath = `/ch/${ch.toString().padStart(2, '0')}/mix/${aux.toString().padStart(2, '0')}/level`;
+        const levelPath = `/ch/${ch}/mix/${aux}/level`;
 
         // Solicitar meter data para este canal/aux específico
         this.client.send(meterAddress, levelPath);
@@ -369,7 +398,7 @@ class XR18Controller {
 
     for (let aux = 1; aux <= this.auxiliaries; aux++) {
       for (let ch = 1; ch <= this.channels; ch++) {
-        const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${aux.toString().padStart(2, '0')}/level`;
+        const levelAddress = `/ch/${ch}/mix/${aux}/level`;
         this.client.send(levelAddress);
       }
     }
@@ -379,7 +408,7 @@ class XR18Controller {
     if (!this.client || !this.connected) return;
 
     for (let ch = 1; ch <= this.channels; ch++) {
-      const address = `/ch/${ch.toString().padStart(2, '0')}/config/name`;
+      const address = `/ch/${ch}/config/name`;
       this.client.send(address);
     }
   }
@@ -389,7 +418,17 @@ class XR18Controller {
 
     // En XR18, los auxiliares están en los buses 1-6
     for (let bus = 1; bus <= this.auxiliaries; bus++) {
-      const address = `/bus/${bus.toString().padStart(2, '0')}/config/name`;
+      const address = `/bus/${bus}/config/name`;
+      this.client.send(address);
+    }
+  }
+
+  requestAuxiliaryMasterLevels() {
+    if (!this.client || !this.connected) return;
+
+    // Solicitar niveles principales de cada auxiliar (bus mix fader)
+    for (let bus = 1; bus <= this.auxiliaries; bus++) {
+      const address = `/bus/${bus}/mix/fader`;
       this.client.send(address);
     }
   }
@@ -478,7 +517,7 @@ class XR18Controller {
   requestAuxiliaryLevels(auxNumber) {
     // Solicitar solo los niveles de un auxiliar específico usando protocolo XR18
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
+      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
       
       // Método 1: Solicitud directa
       this.client.send(levelAddress);
@@ -539,14 +578,14 @@ class XR18Controller {
 
     // Solicitar niveles de canales para este auxiliar
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
+      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
       this.client.send(levelAddress);
     }
 
     // También solicitar nombres de canales si no los tenemos
     for (let ch = 1; ch <= this.channels; ch++) {
       if (!this.channelNames.has(ch)) {
-        const address = `/ch/${ch.toString().padStart(2, '0')}/config/name`;
+        const address = `/ch/${ch}/config/name`;
         this.client.send(address);
       }
     }
@@ -555,7 +594,7 @@ class XR18Controller {
     
     // Un solo intento más simple
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
+      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
       this.client.send(levelAddress);
     }
     
@@ -604,12 +643,14 @@ class XR18Controller {
       }
     }
 
-    const auxName = this.auxiliaryNames.get(auxNumber) || `Auxiliar ${auxNumber}`;
+    const auxName = this.getAuxiliaryName(auxNumber);
+    const masterLevel = this.auxiliaryMasterLevels.get(auxNumber) || 0.0;
     
     return {
       auxNumber,
       name: auxName,
-      channels
+      channels,
+      masterLevel
     };
   }
 
@@ -636,7 +677,7 @@ class XR18Controller {
     // 0.75 corresponde a 0dB (unity gain)
     // Mapear directamente de nuestro rango 0-1 al rango real de la mixer
     const mixerLevel = Math.max(0, Math.min(1.0, level));
-    const address = `/ch/${channelNumber.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
+    const address = `/ch/${channelNumber}/mix/${auxNumber}/level`;
     
     console.log(`Enviando nivel: ${address} = ${mixerLevel.toFixed(3)} (frontend: ${level.toFixed(3)})`);
     this.client.send(address, mixerLevel);
@@ -651,30 +692,62 @@ class XR18Controller {
     };
   }
 
+  async setAuxiliaryMasterLevel(auxNumber, level) {
+    if (!this.client || !this.connected) {
+      throw new Error('No conectado a la mixer');
+    }
+
+    // Para XR18, el volumen principal del auxiliar se controla con /bus/XX/mix/fader
+    const mixerLevel = Math.max(0, Math.min(1.0, level));
+    const address = `/bus/${auxNumber}/mix/fader`;
+    
+    console.log(`Enviando nivel maestro: Aux${auxNumber} (${address}) = ${mixerLevel.toFixed(3)}`);
+    this.client.send(address, mixerLevel);
+    
+    this.auxiliaryMasterLevels.set(auxNumber, mixerLevel);
+
+    return {
+      auxNumber,
+      level: mixerLevel
+    };
+  }
+
   isConnected() {
     return this.connected;
   }
 
   getAuxiliaryName(auxNumber) {
-    // Check if there's a custom name that should be used
+    // Priority 1: Name from mixer (received via OSC)
+    const mixerName = this.auxiliaryNames.get(auxNumber);
+    if (mixerName && mixerName.trim() !== '') {
+      return mixerName;
+    }
+    
+    // Priority 2: Custom name from admin (if enabled)
     const customName = this.customAuxiliaryNames.get(auxNumber);
-    if (customName && customName.useCustom) {
+    if (customName && customName.useCustom && customName.name && customName.name.trim() !== '') {
       return customName.name;
     }
     
-    // Fallback to config name or default
-    return this.auxiliaryNames.get(auxNumber) || `Auxiliar ${auxNumber}`;
+    // Priority 3: Default fallback
+    return `Auxiliar ${auxNumber}`;
   }
 
   getChannelName(channelNumber) {
-    // Check if there's a custom name that should be used
+    // Priority 1: Name from mixer (received via OSC)
+    const mixerName = this.channelNames.get(channelNumber);
+    if (mixerName && mixerName.trim() !== '') {
+      return mixerName;
+    }
+    
+    // Priority 2: Custom name from admin (if enabled)
     const customName = this.customChannelNames.get(channelNumber);
-    if (customName && customName.useCustom) {
+    if (customName && customName.useCustom && customName.name && customName.name.trim() !== '') {
       return customName.name;
     }
     
-    // Fallback to config name or default
-    return this.channelNames.get(channelNumber) || `Canal ${channelNumber}`;
+    // Priority 3: Default fallback
+    return `Canal ${channelNumber}`;
   }
 
   getAllAuxiliaryNames() {

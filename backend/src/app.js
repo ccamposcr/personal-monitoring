@@ -52,14 +52,24 @@ const auxiliaryUsers = new Map();
 
 // Configurar callback para sincronización en tiempo real
 xr18.setLevelChangeCallback((data) => {
-  const { auxNumber, channelNumber, level } = data;
-  console.log(`Sincronizando cambio: Ch${channelNumber} Aux${auxNumber} = ${level.toFixed(3)}`);
+  if (data.type === 'master-level') {
+    const { auxNumber, level } = data;
+    console.log(`Sincronizando cambio maestro: Aux${auxNumber} = ${level.toFixed(3)}`);
 
-  // Broadcast el cambio a todos los usuarios conectados a este auxiliar
-  io.to(`aux-${auxNumber}`).emit('channel-updated', {
-    channelNumber,
-    level
-  });
+    // Broadcast el cambio de volumen maestro a todos los usuarios conectados a este auxiliar
+    io.to(`aux-${auxNumber}`).emit('master-level-updated', {
+      level
+    });
+  } else {
+    const { auxNumber, channelNumber, level } = data;
+    console.log(`Sincronizando cambio: Ch${channelNumber} Aux${auxNumber} = ${level.toFixed(3)}`);
+
+    // Broadcast el cambio a todos los usuarios conectados a este auxiliar
+    io.to(`aux-${auxNumber}`).emit('channel-updated', {
+      channelNumber,
+      level
+    });
+  }
 });
 
 // Socket.IO authentication middleware
@@ -153,6 +163,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('update-master-level', async (data) => {
+    const { auxNumber, level } = data;
+    
+    try {
+      await xr18.setAuxiliaryMasterLevel(auxNumber, level);
+      socket.to(`aux-${auxNumber}`).emit('master-level-updated', {
+        level
+      });
+    } catch (error) {
+      console.error('Error actualizando volumen maestro:', error);
+      socket.emit('error', 'Error actualizando el volumen maestro');
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);
     
@@ -216,7 +240,7 @@ app.get('/auxiliaries', requireAuth, async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Initialize database and start server
 database.init().then(() => {
@@ -229,13 +253,12 @@ database.init().then(() => {
     console.log(`Servidor corriendo en puerto ${PORT} (todas las interfaces)`);
     xr18.connect();
     
-    // Limpiar cualquier throttling previo y resetear todos los canales a mínimo después de la conexión
+    // Limpiar cualquier throttling previo después de la conexión
     setTimeout(async () => {
       try {
         xr18.clearAllThrottling(); // Limpiar estado de throttling previo
-        await xr18.resetAllChannelsToMinimum();
       } catch (error) {
-        console.error('Error durante reseteo inicial de canales:', error);
+        console.error('Error durante limpieza inicial:', error);
       }
     }, 3000); // Esperar 3 segundos para asegurar que la conexión esté establecida
   });

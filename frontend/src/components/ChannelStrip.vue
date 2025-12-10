@@ -159,3 +159,112 @@ export default {
 }
 </script>
 
+<style scoped>
+.channel-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  min-height: 200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.channel-header {
+  margin-bottom: 10px;
+}
+
+.channel-name {
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.fader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  width: 100%;
+}
+
+.level-display {
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  min-height: 16px;
+  text-align: center;
+}
+
+.fader-track {
+  position: relative;
+  width: 20px;
+  height: 120px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: none;
+  flex-grow: 1;
+  min-height: 120px;
+}
+
+.fader-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(to top, #28a745, #5cb85c);
+  border-radius: 0 0 9px 9px;
+  transition: height 0.05s ease;
+}
+
+.fader-thumb {
+  position: absolute;
+  width: 28px;
+  height: 12px;
+  background: #fff;
+  border: 2px solid #28a745;
+  border-radius: 3px;
+  left: -5px;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.fader-thumb:active {
+  cursor: grabbing;
+  background: #f0f0f0;
+}
+
+@media (max-width: 768px) {
+  .channel-strip {
+    padding: 8px;
+    min-height: 180px;
+  }
+  
+  .fader-track {
+    width: 18px;
+    height: 100px;
+    min-height: 100px;
+  }
+  
+  .fader-thumb {
+    width: 24px;
+    height: 10px;
+    left: -4px;
+  }
+  
+  .channel-name {
+    font-size: 11px;
+  }
+  
+  .level-display {
+    font-size: 10px;
+  }
+}
+</style>

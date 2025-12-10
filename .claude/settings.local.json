@@ -13,7 +13,13 @@
       "Bash(npm install:*)",
       "Bash(PORT=3001 npm run dev)",
       "Bash(xargs kill:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(PORT=3001 cd /Users/christian/Documents/Apps/personal-monitoring/backend)",
+      "Bash(killall:*)",
+      "Bash(npm start)",
+      "WebSearch",
+      "WebFetch(domain:behringerwiki.musictribe.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []
