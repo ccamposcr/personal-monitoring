@@ -373,7 +373,7 @@ class XR18Controller {
     for (let aux = 1; aux <= this.auxiliaries; aux++) {
       for (let ch = 1; ch <= this.channels; ch++) {
         const meterAddress = `/meters`;
-        const levelPath = `/ch/${ch}/mix/${aux}/level`;
+        const levelPath = `/ch/${ch.toString().padStart(2, '0')}/mix/${aux.toString().padStart(2, '0')}/level`;
 
         // Solicitar meter data para este canal/aux específico
         this.client.send(meterAddress, levelPath);
@@ -398,7 +398,7 @@ class XR18Controller {
 
     for (let aux = 1; aux <= this.auxiliaries; aux++) {
       for (let ch = 1; ch <= this.channels; ch++) {
-        const levelAddress = `/ch/${ch}/mix/${aux}/level`;
+        const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${aux.toString().padStart(2, '0')}/level`;
         this.client.send(levelAddress);
       }
     }
@@ -408,7 +408,7 @@ class XR18Controller {
     if (!this.client || !this.connected) return;
 
     for (let ch = 1; ch <= this.channels; ch++) {
-      const address = `/ch/${ch}/config/name`;
+      const address = `/ch/${ch.toString().padStart(2, '0')}/config/name`;
       this.client.send(address);
     }
   }
@@ -418,7 +418,7 @@ class XR18Controller {
 
     // En XR18, los auxiliares están en los buses 1-6
     for (let bus = 1; bus <= this.auxiliaries; bus++) {
-      const address = `/bus/${bus}/config/name`;
+      const address = `/bus/${bus.toString().padStart(2, '0')}/config/name`;
       this.client.send(address);
     }
   }
@@ -428,7 +428,7 @@ class XR18Controller {
 
     // Solicitar niveles principales de cada auxiliar (bus mix fader)
     for (let bus = 1; bus <= this.auxiliaries; bus++) {
-      const address = `/bus/${bus}/mix/fader`;
+      const address = `/bus/${bus.toString().padStart(2, '0')}/mix/fader`;
       this.client.send(address);
     }
   }
@@ -517,7 +517,7 @@ class XR18Controller {
   requestAuxiliaryLevels(auxNumber) {
     // Solicitar solo los niveles de un auxiliar específico usando protocolo XR18
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
+      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
       
       // Método 1: Solicitud directa
       this.client.send(levelAddress);
@@ -578,14 +578,14 @@ class XR18Controller {
 
     // Solicitar niveles de canales para este auxiliar
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
+      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
       this.client.send(levelAddress);
     }
 
     // También solicitar nombres de canales si no los tenemos
     for (let ch = 1; ch <= this.channels; ch++) {
       if (!this.channelNames.has(ch)) {
-        const address = `/ch/${ch}/config/name`;
+        const address = `/ch/${ch.toString().padStart(2, '0')}/config/name`;
         this.client.send(address);
       }
     }
@@ -594,7 +594,7 @@ class XR18Controller {
     
     // Un solo intento más simple
     for (let ch = 1; ch <= this.channels; ch++) {
-      const levelAddress = `/ch/${ch}/mix/${auxNumber}/level`;
+      const levelAddress = `/ch/${ch.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
       this.client.send(levelAddress);
     }
     
@@ -677,7 +677,7 @@ class XR18Controller {
     // 0.75 corresponde a 0dB (unity gain)
     // Mapear directamente de nuestro rango 0-1 al rango real de la mixer
     const mixerLevel = Math.max(0, Math.min(1.0, level));
-    const address = `/ch/${channelNumber}/mix/${auxNumber}/level`;
+    const address = `/ch/${channelNumber.toString().padStart(2, '0')}/mix/${auxNumber.toString().padStart(2, '0')}/level`;
     
     console.log(`Enviando nivel: ${address} = ${mixerLevel.toFixed(3)} (frontend: ${level.toFixed(3)})`);
     this.client.send(address, mixerLevel);
@@ -699,7 +699,7 @@ class XR18Controller {
 
     // Para XR18, el volumen principal del auxiliar se controla con /bus/XX/mix/fader
     const mixerLevel = Math.max(0, Math.min(1.0, level));
-    const address = `/bus/${auxNumber}/mix/fader`;
+    const address = `/bus/${auxNumber.toString().padStart(2, '0')}/mix/fader`;
     
     console.log(`Enviando nivel maestro: Aux${auxNumber} (${address}) = ${mixerLevel.toFixed(3)}`);
     this.client.send(address, mixerLevel);
