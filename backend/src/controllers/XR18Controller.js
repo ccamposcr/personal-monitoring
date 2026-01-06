@@ -17,6 +17,7 @@ class XR18Controller {
     this.customAuxiliaryNames = new Map();
     this.auxiliaryMasterLevels = new Map();
     this.lastUpdateTime = new Map(); // Para throttling
+    this.lastMasterUpdateTime = new Map(); // Para throttling del master fader
     this.levelChangeCallback = null; // Callback para notificar cambios
     this.database = null; // Will be set from app.js
     
@@ -507,11 +508,15 @@ class XR18Controller {
       const key = `ch${ch}-aux${auxNumber}`;
       this.lastUpdateTime.delete(key);
     }
+    // También limpiar throttling del master fader
+    const masterKey = `master-aux${auxNumber}`;
+    this.lastMasterUpdateTime.delete(masterKey);
   }
 
   clearAllThrottling() {
     console.log(`Limpiando todo el cache de throttling`);
     this.lastUpdateTime.clear();
+    this.lastMasterUpdateTime.clear();
   }
 
   requestAuxiliaryLevels(auxNumber) {
@@ -697,14 +702,30 @@ class XR18Controller {
       throw new Error('No conectado a la mixer');
     }
 
-    // Para XR18, el volumen principal del auxiliar se controla con /bus/XX/mix/fader
-    const mixerLevel = Math.max(0, Math.min(1.0, level));
-    const address = `/bus/${auxNumber.toString().padStart(2, '0')}/mix/fader`;
+    const key = `master-aux${auxNumber}`;
+    const now = Date.now();
+    const lastUpdate = this.lastMasterUpdateTime.get(key) || 0;
     
-    console.log(`Enviando nivel maestro: Aux${auxNumber} (${address}) = ${mixerLevel.toFixed(3)}`);
+    // Throttling mínimo: solo enviar si han pasado al menos 5ms desde la última actualización
+    if (now - lastUpdate < 5) {
+      console.log(`Throttling master update for ${key} - too frequent`);
+      return {
+        auxNumber,
+        level: this.auxiliaryMasterLevels.get(auxNumber) || level
+      };
+    }
+
+    // Para XR18, el rango completo del master fader es 0.0 (-∞dB) a 1.0 (+10dB)
+    // 0.75 corresponde a 0dB (unity gain)
+    // Mapear directamente de nuestro rango 0-1 al rango real de la mixer
+    const mixerLevel = Math.max(0, Math.min(1.0, level));
+    const address = `/bus/${auxNumber}/mix/fader`;
+    
+    console.log(`Enviando nivel maestro: ${address} = ${mixerLevel.toFixed(3)} (frontend: ${level.toFixed(3)})`);
     this.client.send(address, mixerLevel);
     
     this.auxiliaryMasterLevels.set(auxNumber, mixerLevel);
+    this.lastMasterUpdateTime.set(key, now);
 
     return {
       auxNumber,
